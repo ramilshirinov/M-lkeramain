@@ -150,8 +150,24 @@ export default function HomePage() {
             ))}
           </div>
         ) : listings.length === 0 ? (
-          <div className="p-12 text-center text-navy/55 dark:text-slate-400 bg-white dark:bg-slate-900 rounded-2xl border border-navy/10 dark:border-slate-700 shadow-sm font-medium">
-            {dict.home?.noListings || "Hələ ki bu kateqoriyada aktiv elan yoxdur."}
+          <div className="p-12 text-center bg-white dark:bg-slate-900 rounded-3xl border border-navy/10 dark:border-slate-800 shadow-sm space-y-4 max-w-md mx-auto">
+            <div className="w-14 h-14 rounded-2xl bg-copper/10 text-copper flex items-center justify-center mx-auto text-2xl">
+              🏠
+            </div>
+            <div className="space-y-1">
+              <h3 className="text-base font-bold text-navy dark:text-white">
+                Hələ heç bir elan yerləşdirilməyib
+              </h3>
+              <p className="text-xs text-navy/60 dark:text-slate-400">
+                Sistemə ilk real əmlak elanını siz əlavə edərək alıcılara təqdim edin.
+              </p>
+            </div>
+            <Link
+              href="/listings/add"
+              className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-navy text-white hover:bg-copper text-xs font-bold transition shadow-sm"
+            >
+              <span>+</span> İlk Elanı Yerləşdir
+            </Link>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">

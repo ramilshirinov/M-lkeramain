@@ -13,6 +13,7 @@ import {
   FiGlobe,
   FiMapPin,
   FiAward,
+  FiMessageSquare,
 } from "react-icons/fi";
 
 export default function Navbar() {
@@ -73,6 +74,10 @@ export default function Navbar() {
 
           <Link href="/favorites" className={`flex items-center gap-1.5 ${linkClass}`}>
             <FiHeart className="text-copper" /> {dict.nav?.favorites || "Favoritlər"}
+          </Link>
+
+          <Link href="/messages" className={`flex items-center gap-1.5 ${linkClass}`}>
+            <FiMessageSquare className="text-copper" /> Mesajlar
           </Link>
 
           {user && (

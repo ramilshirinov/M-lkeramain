@@ -21,40 +21,13 @@ import {
   FiSend,
 } from "react-icons/fi";
 
-const DEFAULT_REVIEWS = [
-  {
-    id: 1,
-    author_name: "Tural Quliyev",
-    rating: 5,
-    date: "2 gün əvvəl",
-    comment:
-      "Çox peşəkar yanaşma! Nəsimi rayonunda mənzil alışı zamanı bütün sənədləşmə işlərini sürətli və şəffaf şəkildə həyata keçirdi. Hər kəsə tövsiyə edirəm.",
-  },
-  {
-    id: 2,
-    author_name: "Günay Əliyeva",
-    rating: 5,
-    date: "1 həftə əvvəl",
-    comment:
-      "Evimizi cəmi 10 gün ərzində bazar qiymətinə satmağa kömək etdi. Komissiya haqqı çox münasib və əvvəlcədən dəqiq razılaşdırılmışdı.",
-  },
-  {
-    id: 3,
-    author_name: "Kamran Məmmədli",
-    rating: 4,
-    date: "2 həftə əvvəl",
-    comment:
-      "İpoteka ilə mənzil axtarırdıq, bank təsdiqindən açar təhvilinə qədər yanımızda oldu. Təşəkkürlər!",
-  },
-];
-
 export default function RealtorProfilePage() {
   const { id } = useParams();
   const { supabase, user } = useApp();
 
   const [realtor, setRealtor] = useState(null);
   const [listings, setListings] = useState([]);
-  const [reviews, setReviews] = useState(DEFAULT_REVIEWS);
+  const [reviews, setReviews] = useState([]);
   const [loading, setLoading] = useState(true);
 
   // Yeni rəy forması
@@ -75,48 +48,15 @@ export default function RealtorProfilePage() {
           const json = await res.json();
           if (json.success && json.data?.realtor) {
             setRealtor(json.data.realtor);
-            if (json.data.listings && json.data.listings.length > 0) {
-              setListings(json.data.listings);
-            }
-            return;
+            setListings(json.data.listings || []);
           }
         }
 
-        // Fallback: Supabase-dən çəkirik
-        if (supabase) {
-          const { data: profileData } = await supabase
-            .from("profiles")
-            .select("*")
-            .eq("id", id)
-            .maybeSingle();
-
-          if (profileData) {
-            setRealtor({
-              id: profileData.id,
-              full_name: profileData.full_name || "Peşəkar Rieltor",
-              agency_name: profileData.agency_name || "MÜLKERA Real Estate Agency",
-              commission_rate: profileData.commission_rate || "1-2%",
-              phone: profileData.phone || "+994 50 123 45 67",
-              email: profileData.email || "realtor@mulkera.az",
-              avatar_url: profileData.avatar_url || "",
-              is_approved: profileData.is_approved_realtor ?? true,
-              sales_count: profileData.sales_count || 24,
-              satisfaction_rate: profileData.satisfaction_rate || "99.1",
-              sales_speed_days: profileData.sales_speed_days || 9,
-              bio:
-                profileData.bio ||
-                "Daşınmaz əmlak bazarında 7 ildən artıq peşəkar təcrübə. Bakı şəhəri üzrə mənzil, villa və kommersiya obyektlərinin alqı-satqısı və kirayəsi üzrə ixtisaslaşmışam.",
-            });
-          }
-
-          const { data: listingData } = await supabase
-            .from("listings")
-            .select("*, listing_photos(*), categories(*), districts(*)")
-            .or(`owner_id.eq.${id},user_id.eq.${id}`);
-
-          if (listingData && listingData.length > 0) {
-            setListings(listingData);
-          }
+        // Rəyləri çəkirik
+        const revRes = await fetch(`/api/reviews?realtor_id=${id}`);
+        const revJson = await revRes.json();
+        if (revJson.success && Array.isArray(revJson.reviews)) {
+          setReviews(revJson.reviews);
         }
       } catch (err) {
         console.error("Məlumat yüklənmədi:", err);
@@ -147,10 +87,11 @@ export default function RealtorProfilePage() {
     setReviewSubmitted(true);
 
     try {
-      await fetch(`/api/realtors/${id}`, {
+      await fetch(`/api/reviews`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          realtor_id: id,
           reviewer_name,
           rating: newRating,
           comment: reviewObj.comment,
@@ -247,23 +188,29 @@ export default function RealtorProfilePage() {
               </div>
             </div>
 
-            {/* Əlaqə düymələri */}
-            <div className="flex flex-col w-full md:w-auto gap-2.5 shrink-0">
-              <a
-                href={`tel:${realtor.phone}`}
-                className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-navy text-white hover:bg-copper font-bold text-xs shadow-sm transition"
-              >
-                <FiPhone /> {realtor.phone}
-              </a>
-              <a
-                href={`https://wa.me/${realtor.phone?.replace(/[^0-9]/g, "")}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-emerald-600 text-white hover:bg-emerald-700 font-bold text-xs shadow-sm transition"
-              >
-                <FiMessageSquare /> WhatsApp ilə Yaz
-              </a>
-            </div>
+          {/* Əlaqə düymələri */}
+          <div className="flex flex-col w-full md:w-auto gap-2.5 shrink-0">
+            <Link
+              href={`/messages?user_id=${realtor.id}`}
+              className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-copper to-amber-600 text-white hover:brightness-110 font-bold text-xs shadow-sm transition"
+            >
+              <FiSend /> Birbaşa Mesajlaş
+            </Link>
+            <a
+              href={`tel:${realtor.phone}`}
+              className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-navy text-white hover:bg-copper font-bold text-xs shadow-sm transition"
+            >
+              <FiPhone /> {realtor.phone}
+            </a>
+            <a
+              href={`https://wa.me/${realtor.phone?.replace(/[^0-9]/g, "")}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-emerald-600 text-white hover:bg-emerald-700 font-bold text-xs shadow-sm transition"
+            >
+              <FiMessageSquare /> WhatsApp ilə Yaz
+            </a>
+          </div>
           </div>
 
           {/* Statistika və Şərtlər Zolağı */}

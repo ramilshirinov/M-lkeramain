@@ -56,7 +56,7 @@ export async function POST(req) {
       payload.owner_id = userIdCookie.value;
     }
     if (!payload.owner_id) {
-      payload.owner_id = "client-001";
+      payload.owner_id = "admin-001";
     }
 
     const newListing = insertListing(payload, photoUrls, videoUrls);

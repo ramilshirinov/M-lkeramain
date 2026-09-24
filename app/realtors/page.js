@@ -15,84 +15,6 @@ import {
 } from "react-icons/fi";
 import Link from "next/link";
 
-const SAMPLE_REALTORS = [
-  {
-    id: "r1",
-    full_name: "Ramil Şirinov",
-    agency_name: "MÜLKERA Premium Real Estate",
-    commission_rate: "1.5%",
-    is_verified: true,
-    is_legal: true,
-    sales_count: 32,
-    satisfaction_rate: "99.4",
-    sales_speed_days: 8,
-    phone: "+994 50 123 45 67",
-    avatar_url: "",
-    rating: 4.9,
-    reviews_count: 28,
-  },
-  {
-    id: "r2",
-    full_name: "Elmir Məmmədov",
-    agency_name: "Bakı Əmlak Mərkəzi",
-    commission_rate: "1-2%",
-    is_verified: true,
-    is_legal: true,
-    sales_count: 27,
-    satisfaction_rate: "98.8",
-    sales_speed_days: 11,
-    phone: "+994 55 234 56 78",
-    avatar_url: "",
-    rating: 4.8,
-    reviews_count: 21,
-  },
-  {
-    id: "r3",
-    full_name: "Aysel Qasımova",
-    agency_name: "Golden Key Agency",
-    commission_rate: "1%",
-    is_verified: true,
-    is_legal: true,
-    sales_count: 24,
-    satisfaction_rate: "98.2",
-    sales_speed_days: 10,
-    phone: "+994 70 345 67 89",
-    avatar_url: "",
-    rating: 4.8,
-    reviews_count: 19,
-  },
-  {
-    id: "r4",
-    full_name: "Kənan Əliyev",
-    agency_name: "Zirvə Daşınmaz Əmlak",
-    commission_rate: "2%",
-    is_verified: true,
-    is_legal: true,
-    sales_count: 20,
-    satisfaction_rate: "97.5",
-    sales_speed_days: 14,
-    phone: "+994 50 456 78 90",
-    avatar_url: "",
-    rating: 4.7,
-    reviews_count: 15,
-  },
-  {
-    id: "r5",
-    full_name: "Nigar Həsənli",
-    agency_name: "Şəhər Mənzilləri",
-    commission_rate: "1.5%",
-    is_verified: true,
-    is_legal: true,
-    sales_count: 18,
-    satisfaction_rate: "96.9",
-    sales_speed_days: 12,
-    phone: "+994 55 567 89 01",
-    avatar_url: "",
-    rating: 4.6,
-    reviews_count: 12,
-  },
-];
-
 export default function RealtorsPage() {
   const { supabase } = useApp();
   const [realtors, setRealtors] = useState([]);
@@ -117,14 +39,14 @@ export default function RealtorsPage() {
     try {
       const res = await fetch(`/api/realtors/rankings?sortBy=${sortMethod}`, { cache: "no-store" });
       const json = await res.json();
-      if (json.success && json.data?.length > 0) {
+      if (json.success && Array.isArray(json.data)) {
         setRealtors(json.data);
       } else {
-        setRealtors(SAMPLE_REALTORS);
+        setRealtors([]);
       }
     } catch (err) {
       console.error("Rieltorlar yüklənmədi:", err);
-      setRealtors(SAMPLE_REALTORS);
+      setRealtors([]);
     } finally {
       setLoading(false);
     }

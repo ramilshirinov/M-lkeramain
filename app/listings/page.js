@@ -614,6 +614,27 @@ function ListingsContent() {
               Elanlar yüklənir...
             </p>
           </div>
+        ) : listings.length === 0 ? (
+          <div className="bg-white dark:bg-slate-900 rounded-3xl p-12 text-center border border-navy/10 dark:border-slate-800 shadow-sm max-w-md mx-auto space-y-4">
+            <div className="w-14 h-14 rounded-2xl bg-copper/10 text-copper flex items-center justify-center mx-auto text-2xl">
+              🏠
+            </div>
+            <div className="space-y-1">
+              <h3 className="text-lg font-bold text-navy dark:text-white">
+                Hazırda heç bir elan yoxdur
+              </h3>
+              <p className="text-xs text-navy/60 dark:text-slate-400">
+                İlk real daşınmaz əmlak elanını siz yerləşdirərək bazarda alıcılara təqdim edin.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => router.push("/listings/add")}
+              className="inline-flex items-center gap-1.5 px-6 py-3 rounded-xl bg-navy text-white hover:bg-copper text-xs font-bold transition shadow-sm cursor-pointer"
+            >
+              <span>+</span> İlk Elanı Yerləşdir
+            </button>
+          </div>
         ) : filteredListings.length === 0 ? (
           <div className="bg-white dark:bg-slate-900 rounded-2xl p-12 text-center border border-navy/10 dark:border-slate-800 shadow-sm max-w-md mx-auto space-y-4">
             <FiSearch className="text-4xl text-copper/60 mx-auto" />

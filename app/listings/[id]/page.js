@@ -12,7 +12,7 @@ import {
   FiShield, FiChevronLeft, FiChevronRight, FiX, FiPhone, 
   FiUser, FiCheckCircle, FiPlay, FiLayers, FiBriefcase, FiHeart,
   FiEdit3, FiTrash2, FiFlag, FiShare2, FiCheck, FiMessageSquare,
-  FiEye, FiTag, FiFileText
+  FiEye, FiTag, FiFileText, FiStar, FiSend
 } from "react-icons/fi";
 
 const PLACEHOLDER = "/images/placeholder-property.svg";
@@ -84,6 +84,66 @@ export default function ListingDetailPage() {
   const [deleting, setDeleting] = useState(false);
 
   const { isFavorited, toggling, toggleFavorite } = useFavorite(id);
+
+  // Rəylər State & Handlers
+  const [reviews, setReviews] = useState([]);
+  const [reviewsLoading, setReviewsLoading] = useState(false);
+  const [newReviewRating, setNewReviewRating] = useState(5);
+  const [newReviewComment, setNewReviewComment] = useState("");
+  const [newReviewAuthor, setNewReviewAuthor] = useState("");
+  const [reviewSubmitting, setReviewSubmitting] = useState(false);
+  const [reviewSuccessMsg, setReviewSuccessMsg] = useState("");
+
+  const loadListingReviews = async () => {
+    if (!id) return;
+    setReviewsLoading(true);
+    try {
+      const res = await fetch(`/api/reviews?listing_id=${id}`);
+      const data = await res.json();
+      if (data.success && data.reviews) {
+        setReviews(data.reviews);
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setReviewsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadListingReviews();
+  }, [id]);
+
+  const handleSubmitReview = async (e) => {
+    e.preventDefault();
+    if (!newReviewComment.trim() || reviewSubmitting) return;
+    setReviewSubmitting(true);
+    try {
+      const authorName = newReviewAuthor.trim() || user?.user_metadata?.full_name || user?.email?.split("@")[0] || "Anonim Müştəri";
+      const res = await fetch("/api/reviews", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          listing_id: id,
+          user_id: user?.id || null,
+          reviewer_name: authorName,
+          rating: newReviewRating,
+          comment: newReviewComment.trim()
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setNewReviewComment("");
+        setReviewSuccessMsg("Rəyiniz uğurla qeydə alındı!");
+        loadListingReviews();
+        setTimeout(() => setReviewSuccessMsg(""), 3000);
+      }
+    } catch (e) {
+      console.error("Rəy göndərilmədi:", e);
+    } finally {
+      setReviewSubmitting(false);
+    }
+  };
 
   useEffect(() => {
     async function fetchListingDetail() {
@@ -677,6 +737,14 @@ export default function ListingDetailPage() {
                 >
                   <FiMessageSquare className="text-sm" /> WhatsApp ilə Əlaqə
                 </a>
+
+                {/* MÜLKERA Çat: Sahibinə / Rieltoruna Birbaşa Mesaj */}
+                <Link
+                  href={`/messages?user_id=${listing.owner_id || listing.user_id || ""}&listing_id=${listing.id}`}
+                  className="w-full flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-copper to-amber-600 text-white hover:brightness-110 py-3.5 px-4 text-xs font-bold transition shadow-sm"
+                >
+                  <FiSend className="text-sm" /> Sahibinə / Rieltoruna Mesaj Göndər
+                </Link>
               </div>
 
               {/* Elan Parametrləri Xülasəsi */}
@@ -713,6 +781,163 @@ export default function ListingDetailPage() {
             </div>
           </div>
 
+        </div>
+
+        {/* Rəylər və Qiymətləndirmə Bölməsi */}
+        <div className="mt-16 pt-10 border-t border-navy/10 dark:border-slate-800 space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <h3 className="text-2xl font-bold font-heading text-navy dark:text-white flex items-center gap-2">
+                <span>⭐</span> Rəylər və Qiymətləndirmə
+              </h3>
+              <p className="text-xs text-navy/60 dark:text-slate-400 mt-1">
+                Bu əmlak və vasitəçilik xidməti haqqında real müştəri rəyləri
+              </p>
+            </div>
+            <div className="flex items-center gap-2 self-start sm:self-auto">
+              <span className="text-xs font-bold px-3 py-1.5 rounded-xl bg-gold/10 text-copper dark:text-amber-400 border border-gold/20 flex items-center gap-1">
+                <FiStar className="fill-copper text-copper" /> {reviews.length > 0 ? (reviews.reduce((acc, r) => acc + Number(r.rating || 5), 0) / reviews.length).toFixed(1) : "5.0"} / 5 ({reviews.length} rəy)
+              </span>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            {/* Mövcud Rəylər Siyahısı */}
+            <div className="lg:col-span-2 space-y-4">
+              {reviewsLoading ? (
+                <div className="p-8 text-center text-xs text-navy/40">Rəylər yüklənir...</div>
+              ) : reviews.length === 0 ? (
+                <div className="p-8 text-center rounded-2xl bg-white dark:bg-slate-900 border border-navy/10 dark:border-slate-800 shadow-sm space-y-2">
+                  <FiStar className="text-2xl text-copper/40 mx-auto" />
+                  <p className="text-xs font-bold text-navy dark:text-white">
+                    Hələ heç bir rəy bildirilməyib
+                  </p>
+                  <p className="text-[11px] text-navy/50 dark:text-slate-400">
+                    Bu elan və ya xidmət haqqında ilk rəyi aşağıdakı formadan istifadə edərək siz yazın.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {reviews.map((rev) => (
+                    <div
+                      key={rev.id}
+                      className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-navy/10 dark:border-slate-800 shadow-sm space-y-2"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2.5">
+                          <div className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center font-bold text-xs text-copper">
+                            {(rev.author_name || rev.reviewer_name || "M")[0].toUpperCase()}
+                          </div>
+                          <div>
+                            <h5 className="text-xs font-bold text-navy dark:text-white">
+                              {rev.author_name || rev.reviewer_name || "Müştəri"}
+                            </h5>
+                            <span className="text-[10px] text-navy/40 dark:text-slate-500">
+                              {rev.created_at ? new Date(rev.created_at).toLocaleDateString("az-AZ") : "Bu gün"}
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-1 text-amber-500 text-xs">
+                          {[1, 2, 3, 4, 5].map((star) => (
+                            <FiStar
+                              key={star}
+                              className={`text-xs ${
+                                star <= Number(rev.rating || 5)
+                                  ? "fill-amber-400 text-amber-500"
+                                  : "text-slate-300 dark:text-slate-700"
+                              }`}
+                            />
+                          ))}
+                        </div>
+                      </div>
+
+                      <p className="text-xs text-navy/70 dark:text-slate-300 leading-relaxed font-normal">
+                        {rev.comment}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Yeni Rəy Yazma Formu */}
+            <div className="p-6 rounded-2xl bg-white dark:bg-slate-900 border border-navy/10 dark:border-slate-800 shadow-sm space-y-4 h-fit">
+              <h4 className="text-sm font-bold text-navy dark:text-white flex items-center gap-1.5">
+                <span>✍️</span> Rəy Bildirin
+              </h4>
+
+              {reviewSuccessMsg ? (
+                <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 text-xs font-semibold flex items-center gap-2">
+                  <FiCheckCircle className="shrink-0 text-base" /> {reviewSuccessMsg}
+                </div>
+              ) : (
+                <form onSubmit={handleSubmitReview} className="space-y-3">
+                  <div>
+                    <label className="block text-[11px] font-bold text-navy/70 dark:text-slate-300 mb-1">
+                      Qiymətləndirmə (Ulduz)
+                    </label>
+                    <div className="flex items-center gap-1.5">
+                      {[1, 2, 3, 4, 5].map((star) => (
+                        <button
+                          key={star}
+                          type="button"
+                          onClick={() => setNewReviewRating(star)}
+                          className="p-1 text-lg transition hover:scale-110 cursor-pointer"
+                        >
+                          <FiStar
+                            className={
+                              star <= newReviewRating
+                                ? "fill-amber-400 text-amber-500"
+                                : "text-slate-300 dark:text-slate-600"
+                            }
+                          />
+                        </button>
+                      ))}
+                      <span className="ml-2 text-xs font-bold text-copper">{newReviewRating} ulduz</span>
+                    </div>
+                  </div>
+
+                  {!user && (
+                    <div>
+                      <label className="block text-[11px] font-bold text-navy/70 dark:text-slate-300 mb-1">
+                        Adınız
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="Ad və Soyad"
+                        value={newReviewAuthor}
+                        onChange={(e) => setNewReviewAuthor(e.target.value)}
+                        className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-navy/10 dark:border-slate-700 text-xs text-navy dark:text-slate-100 outline-none placeholder:text-navy/40"
+                      />
+                    </div>
+                  )}
+
+                  <div>
+                    <label className="block text-[11px] font-bold text-navy/70 dark:text-slate-300 mb-1">
+                      Təəssüratınız və Şərhiniz
+                    </label>
+                    <textarea
+                      rows="3"
+                      placeholder="Mənzil və ya xidmət haqqında rəyinizi yazın..."
+                      value={newReviewComment}
+                      onChange={(e) => setNewReviewComment(e.target.value)}
+                      required
+                      className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-navy/10 dark:border-slate-700 text-xs text-navy dark:text-slate-100 outline-none placeholder:text-navy/40 resize-none"
+                    />
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={reviewSubmitting || !newReviewComment.trim()}
+                    className="w-full py-2.5 rounded-xl bg-navy text-white hover:bg-copper text-xs font-bold transition shadow-sm disabled:opacity-50 cursor-pointer"
+                  >
+                    {reviewSubmitting ? "Göndərilir..." : "Rəyi Dərc Et"}
+                  </button>
+                </form>
+              )}
+            </div>
+          </div>
         </div>
 
         {/* Oxşar Elanlar (Eyni məkanda, yaxın qiymət, oxşar sahə) */}

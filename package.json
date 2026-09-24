@@ -9,7 +9,6 @@
     "lint": "echo 'No lint errors'"
   },
   "dependencies": {
-    "@netlify/plugin-nextjs": "^5.16.0",
     "@supabase/auth-helpers-nextjs": "^0.15.0",
     "@supabase/ssr": "^0.5.2",
     "@supabase/supabase-js": "^2.116.0",

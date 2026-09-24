@@ -246,6 +246,44 @@ create table if not exists public.live_participants (
   left_at timestamptz
 );
 
+-- =====================================================================
+-- 5.1 MESAJLAŞMA VƏ ÇAT (Conversations & Messages)
+-- =====================================================================
+create table if not exists public.conversations (
+  id text primary key,
+  participant_ids text[] not null,
+  listing_id uuid references public.listings(id) on delete set null,
+  last_message text,
+  last_message_at timestamptz default now(),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create table if not exists public.messages (
+  id text primary key,
+  conversation_id text references public.conversations(id) on delete cascade,
+  sender_id text not null,
+  sender_name text,
+  receiver_id text not null,
+  listing_id uuid references public.listings(id) on delete set null,
+  text text not null,
+  read boolean default false,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists idx_messages_conversation on public.messages(conversation_id);
+create index if not exists idx_messages_receiver on public.messages(receiver_id);
+
+create table if not exists public.live_waiting_list (
+  id text primary key,
+  email text,
+  phone text,
+  role text default 'viewer',
+  note text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz default now()
+);
+
 -- Hədiyyə göndəriləndə: PK xalını avtomatik artır + rieltor aylıq xalını yeniləyir
 create or replace function public.apply_live_gift()
 returns trigger as $$
