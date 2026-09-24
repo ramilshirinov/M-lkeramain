@@ -68,7 +68,7 @@ export async function POST(req) {
           return NextResponse.json({ success: false, message: "Email və şifrə daxil edilməlidir." }, { status: 400 });
         }
 
-        const serverClient = getSupabaseServerClient();
+        const serverClient = await getSupabaseServerClient();
         const { data: signInData, error: signInErr } = await serverClient.auth.signInWithPassword({
           email: loginEmail,
           password: loginPassword,

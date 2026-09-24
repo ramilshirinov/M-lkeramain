@@ -54,7 +54,7 @@ export async function POST(req) {
           await new Promise((r) => setTimeout(r, 250));
         }
 
-        const serverClient = getSupabaseServerClient();
+        const serverClient = await getSupabaseServerClient();
         const { data: signInData, error: signInErr } = await serverClient.auth.signInWithPassword({ email, password });
         if (signInErr) {
           console.warn("Qeydiyyatdan sonra avtomatik giriş uğursuz oldu:", signInErr.message);

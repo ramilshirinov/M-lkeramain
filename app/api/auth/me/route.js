@@ -6,7 +6,7 @@ export async function GET(req) {
   try {
     if (isSupabaseConfigured()) {
       try {
-        const supabase = getSupabaseServerClient();
+        const supabase = await getSupabaseServerClient();
         const {
           data: { user },
         } = await supabase.auth.getUser();

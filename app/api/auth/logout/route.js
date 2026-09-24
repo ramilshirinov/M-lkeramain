@@ -4,7 +4,7 @@ import { getSupabaseServerClient, isSupabaseConfigured } from "@/lib/supabaseSer
 export async function POST() {
   if (isSupabaseConfigured()) {
     try {
-      const supabase = getSupabaseServerClient();
+      const supabase = await getSupabaseServerClient();
       await supabase.auth.signOut();
     } catch (err) {
       console.warn("Supabase signOut xətası:", err.message);
