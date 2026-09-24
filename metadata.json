@@ -1,0 +1,6 @@
+{
+  "name": "MÜLKERA",
+  "description": "MÜLKERA — Azərbaycanda əmlak almaq, satmaq və kirayə vermək üçün etibarlı platforma.",
+  "requestFramePermissions": ["geolocation"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 600" width="100%" height="100%">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#F1F5F9" />
+      <stop offset="100%" stop-color="#E2E8F0" />
+    </linearGradient>
+    <linearGradient id="accentGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#C9743E" />
+      <stop offset="100%" stop-color="#B85D26" />
+    </linearGradient>
+  </defs>
+  <rect width="800" height="600" fill="url(#bgGrad)" />
+  <g opacity="0.12">
+    <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+      <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#1B2440" stroke-width="1"/>
+    </pattern>
+    <rect width="800" height="600" fill="url(#grid)" />
+  </g>
+  <g transform="translate(260, 160)">
+    <!-- House outline -->
+    <path d="M 140 20 L 260 120 L 260 260 L 20 260 L 20 120 Z" fill="#FFFFFF" stroke="#1B2440" stroke-width="8" stroke-linejoin="round" />
+    <!-- Roof peak accent -->
+    <path d="M 140 10 L 270 120 L 250 120 L 140 30 L 30 120 L 10 120 Z" fill="url(#accentGrad)" />
+    <!-- Chimney -->
+    <rect x="200" y="40" width="30" height="50" fill="#1B2440" rx="4" />
+    <!-- Door -->
+    <rect x="110" y="170" width="60" height="90" fill="#C9743E" rx="6" />
+    <circle cx="125" cy="215" r="4" fill="#FFFFFF" />
+    <!-- Windows -->
+    <rect x="50" y="150" width="40" height="40" fill="#E2E8F0" stroke="#1B2440" stroke-width="4" rx="4" />
+    <line x1="70" y1="150" x2="70" y2="190" stroke="#1B2440" stroke-width="3" />
+    <line x1="50" y1="170" x2="90" y2="170" stroke="#1B2440" stroke-width="3" />
+    
+    <rect x="190" y="150" width="40" height="40" fill="#E2E8F0" stroke="#1B2440" stroke-width="4" rx="4" />
+    <line x1="210" y1="150" x2="210" y2="190" stroke="#1B2440" stroke-width="3" />
+    <line x1="190" y1="170" x2="230" y2="170" stroke="#1B2440" stroke-width="3" />
+  </g>
+  <!-- Text -->
+  <text x="400" y="480" text-anchor="middle" font-family="'Segoe UI', Roboto, sans-serif" font-size="22" font-weight="700" fill="#1B2440" opacity="0.8">
+    MÜLKERA
+  </text>
+  <text x="400" y="510" text-anchor="middle" font-family="'Segoe UI', Roboto, sans-serif" font-size="15" font-weight="500" fill="#64748B">
+    Şəkil əlavə edilməyib
+  </text>
+</svg>

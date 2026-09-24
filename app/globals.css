@@ -1,0 +1,111 @@
+@import url("https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700;800&family=Inter:wght@400;500;600&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --brand-navy: #0f172a;
+  --brand-gold: #c9a24a;
+  --brand-copper: #b45309;
+  --brand-charcoal: #1c1b19;
+  --brand-bg: #f8fafc; /* Təmiz ağ/açıq boz fon */
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  @apply bg-[#F8FAFC] dark:bg-slate-950 text-navy dark:text-slate-100 font-body antialiased transition-colors duration-200;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  @apply font-heading text-navy dark:text-slate-100;
+}
+
+.dark .card-surface {
+  @apply bg-slate-900 border-slate-800 text-slate-100;
+}
+
+.custom-price-marker,
+.mulkera-marker {
+  background: transparent !important;
+  border: none !important;
+}
+
+.leaflet-popup-content-wrapper {
+  border-radius: 1rem !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+}
+.leaflet-popup-content {
+  margin: 0 !important;
+  line-height: normal !important;
+}
+
+::selection {
+  background-color: var(--brand-gold);
+  color: #fff;
+}
+
+.brand-gradient-text {
+  background: linear-gradient(90deg, #0F172A 0%, #1E293B 55%, #C9A24A 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.btn-primary {
+  @apply inline-flex items-center justify-center gap-2 rounded-full bg-navy px-6 py-3 text-sm font-semibold text-white transition-all duration-200 hover:bg-copper hover:-translate-y-0.5 active:translate-y-0 shadow-sm;
+}
+
+.btn-outline {
+  @apply inline-flex items-center justify-center gap-2 rounded-full border border-navy/20 bg-transparent px-6 py-3 text-sm font-semibold text-navy transition-all duration-200 hover:border-gold hover:text-copper;
+}
+
+.btn-gold {
+  @apply inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-gold-400 to-gold-600 px-6 py-3 text-sm font-semibold text-navy shadow-card transition-all duration-200 hover:shadow-cardHover hover:-translate-y-0.5;
+}
+
+.card-surface {
+  @apply rounded-xl2 border border-navy/5 bg-white shadow-card transition-shadow duration-200;
+}
+
+.input-field {
+  @apply w-full rounded-xl border border-navy/15 bg-white px-4 py-2.5 text-sm text-navy placeholder:text-navy/40 outline-none transition focus:border-gold-400 focus:ring-2 focus:ring-gold-100;
+}
+
+.label-field {
+  @apply mb-1.5 block text-sm font-medium text-navy/80;
+}
+
+.badge {
+  @apply inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-semibold;
+}
+
+.badge-vip {
+  @apply bg-gradient-to-r from-gold-300 to-gold-500 text-navy;
+}
+
+.badge-agency {
+  @apply bg-navy text-white;
+}
+
+.badge-owner {
+  @apply bg-slate-100 text-navy;
+}
+
+.line-clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.line-clamp-3 {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
