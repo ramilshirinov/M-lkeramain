@@ -380,17 +380,40 @@ export default function RealtorProfilePage() {
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <span className="font-bold text-xs text-navy dark:text-white">
-                      {r.author_name}
+                      {r.author_name || r.reviewer_name || "Müştəri"}
                     </span>
-                    <span className="text-[10px] text-navy/40 dark:text-slate-500">· {r.date}</span>
+                    <span className="text-[10px] text-navy/40 dark:text-slate-500">· {r.date || "Tarixiz"}</span>
                   </div>
-                  <div className="flex items-center gap-0.5 text-amber-500 text-xs">
-                    {Array.from({ length: 5 }).map((_, i) => (
-                      <FiStar
-                        key={i}
-                        className={`text-xs ${i < r.rating ? "fill-amber-500" : "text-slate-300 dark:text-slate-600"}`}
-                      />
-                    ))}
+                  <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-0.5 text-amber-500 text-xs">
+                      {Array.from({ length: 5 }).map((_, i) => (
+                        <FiStar
+                          key={i}
+                          className={`text-xs ${i < r.rating ? "fill-amber-500" : "text-slate-300 dark:text-slate-600"}`}
+                        />
+                      ))}
+                    </div>
+                    <button
+                      onClick={async () => {
+                        alert("Şikayətiniz qeydə alındı və admin tərəfindən baxılacaq.");
+                        try {
+                          await fetch("/api/admin", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({
+                              action: "report_review",
+                              review_id: r.id,
+                              realtor_id: id,
+                              details: `Şikayət olunan rəy: ${r.comment}`
+                            })
+                          });
+                        } catch (e) {}
+                      }}
+                      className="text-[10px] text-rose-500 hover:underline cursor-pointer"
+                      title="Rəydən şikayət et"
+                    >
+                      Şikayət et
+                    </button>
                   </div>
                 </div>
                 <p className="text-xs text-navy/70 dark:text-slate-300 leading-relaxed">

@@ -12,7 +12,7 @@ function LoginForm() {
   const { login } = useApp();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const redirectTo = searchParams.get("redirect") || "/listings";
+  const redirectTo = searchParams.get("redirect") || "/profile";
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
