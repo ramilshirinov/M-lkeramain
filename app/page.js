@@ -5,7 +5,8 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useApp } from "@/context/AppContext";
 import ListingCard from "@/components/ListingCard";
-import { FiSearch } from "react-icons/fi";
+import HeroSection from "@/components/HeroSection";
+import { FiSearch, FiMapPin } from "react-icons/fi";
 
 // listing_photos, categories və districts sorğuya qoşulur (şəkil problemi buradan həll olunur)
 const SELECT_ALL = "*, listing_photos(url, media_type), categories(*), districts(*)";
@@ -53,8 +54,9 @@ export default function HomePage() {
     };
   }, [supabase, selectedCategory]);
 
-  const goSearch = () => {
-    router.push(`/listings?search=${encodeURIComponent(searchQuery.trim())}`);
+  const goSearch = (customQuery) => {
+    const q = customQuery !== undefined ? customQuery : searchQuery;
+    router.push(`/listings?search=${encodeURIComponent((q || "").trim())}`);
   };
 
   const tabs = [
@@ -66,43 +68,16 @@ export default function HomePage() {
   ];
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] dark:bg-slate-950 text-navy dark:text-slate-100">
-      {/* Hero Bölməsi */}
-      <section className="relative bg-gradient-to-b from-cream-100 to-[#F8FAFC] dark:from-slate-900 dark:to-slate-950 py-16 sm:py-24 px-4 sm:px-6 lg:px-8 border-b border-navy/10 dark:border-slate-800">
-        <div className="max-w-4xl mx-auto text-center space-y-6">
-          <h1 className="text-4xl sm:text-6xl font-extrabold tracking-tight font-heading leading-tight text-navy dark:text-white">
-            {dict.home?.heroTitle || "Sizin eranız, sizin mülkünüz."}
-          </h1>
-          <p className="text-base sm:text-xl text-navy/70 dark:text-slate-300 max-w-2xl mx-auto font-medium">
-            {dict.home?.heroSubtitle ||
-              "Azərbaycanda əmlak almaq, satmaq və kirayə vermək üçün etibarlı platforma."}
-          </p>
+    <div className="min-h-screen bg-white text-navy">
+      {/* Hero Section (Modern Retro-Futuristic Motion UI with 3D Tilt & AI Assistant) */}
+      <HeroSection
+        searchQuery={searchQuery}
+        setSearchQuery={setSearchQuery}
+        onSearch={goSearch}
+      />
 
-          {/* Axtarış paneli */}
-          <div className="flex flex-col sm:flex-row gap-2 max-w-2xl mx-auto bg-white dark:bg-slate-900 p-2 rounded-2xl shadow-card dark:border dark:border-slate-800">
-            <div className="flex-1 flex items-center px-4 py-2 gap-2 text-navy dark:text-slate-200">
-              <FiSearch className="text-copper text-lg flex-shrink-0" />
-              <input
-                type="text"
-                placeholder={dict.home?.searchPlaceholder || "Rayon, ünvan və ya açar söz axtarın..."}
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && goSearch()}
-                className="w-full bg-transparent text-sm focus:outline-none placeholder:text-navy/40 dark:placeholder:text-slate-500"
-              />
-            </div>
-            <button
-              onClick={() => goSearch()}
-              className="bg-navy hover:bg-copper text-white font-semibold py-3 px-8 rounded-xl text-sm transition-all duration-200 shadow-sm"
-            >
-              {dict.home?.searchButton || "Axtar"}
-            </button>
-          </div>
-        </div>
-      </section>
-
-      {/* Kateqoriya tabları */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-12">
+      {/* Kateqoriya tabları (Şəkildəki kimi zərif kapsul düymələr) */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 pb-8">
         <div className="flex flex-wrap justify-center gap-3">
           {tabs.map((cat) => (
             <button
@@ -110,8 +85,8 @@ export default function HomePage() {
               onClick={() => setSelectedCategory(cat.id)}
               className={`px-6 py-2.5 rounded-full text-sm font-semibold transition-all ${
                 selectedCategory === cat.id
-                  ? "bg-navy text-white shadow-card dark:bg-copper"
-                  : "bg-white dark:bg-slate-900 text-navy dark:text-slate-200 border border-navy/15 dark:border-slate-700 hover:border-gold hover:text-copper"
+                  ? "bg-[#101828] text-white shadow-md"
+                  : "bg-white text-slate-700 border border-slate-200 hover:border-slate-300 hover:text-navy shadow-sm"
               }`}
             >
               {cat.label}
@@ -121,10 +96,10 @@ export default function HomePage() {
       </section>
 
       {/* Seçilmiş elanlar */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="flex justify-between items-center mb-8">
-          <h2 className="text-2xl sm:text-3xl font-bold font-heading text-navy dark:text-white">
-            {dict.home?.featured || "Seçilmiş Elanlar"}
+          <h2 className="text-2xl sm:text-3xl font-extrabold font-heading text-[#111827]">
+            {dict.home?.featured || "Seçilmiş elanlar"}
           </h2>
           <Link href="/listings" className="text-copper font-semibold text-sm hover:underline">
             {dict.home?.viewAll || "Hamısına bax"} &rarr;
