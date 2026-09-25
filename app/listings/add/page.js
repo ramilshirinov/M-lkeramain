@@ -11,6 +11,7 @@ import {
 } from "@/lib/listings";
 import { AZERBAIJAN_REGIONS } from "@/constants/locations";
 import MediaUploader from "@/components/MediaUploader";
+import LocationPicker from "@/components/LocationPicker";
 import { FiPlusCircle, FiCheckCircle, FiHome, FiDollarSign, FiMapPin, FiLayers } from "react-icons/fi";
 
 const INITIAL_FORM = {
@@ -187,6 +188,23 @@ export default function AddListingPage() {
                 className={`w-full rounded-xl bg-slate-50 dark:bg-slate-800 border px-4 py-3 text-sm outline-none text-navy dark:text-white placeholder:text-navy/40 dark:placeholder:text-slate-500 focus:border-copper transition ${
                   errors.title_az ? "border-red-400 bg-red-50/30" : "border-navy/15 dark:border-slate-700"
                 }`}
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-semibold text-navy dark:text-slate-200 mb-2">İnteraktiv Xəritədə Nöqtə Qeyd Edin (Məkan Seçimi)</label>
+              <LocationPicker
+                latitude={form.latitude}
+                longitude={form.longitude}
+                onChange={(coords) => {
+                  if (coords) {
+                    update("latitude", coords.lat);
+                    update("longitude", coords.lng);
+                  } else {
+                    update("latitude", "");
+                    update("longitude", "");
+                  }
+                }}
               />
             </div>
             <div>
