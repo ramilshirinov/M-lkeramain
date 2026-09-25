@@ -15,6 +15,8 @@ import {
   FiCheck,
   FiCheckCircle,
   FiArrowLeft,
+  FiMapPin,
+  FiPlus,
 } from "react-icons/fi";
 
 function MessagesContent() {
@@ -26,7 +28,6 @@ function MessagesContent() {
   const targetListingId = searchParams.get("listing_id");
 
   const [conversations, setConversations] = useState([]);
-  const [allUsers, setAllUsers] = useState([]);
   const [activeConvId, setActiveConvId] = useState(null);
   const [messages, setMessages] = useState([]);
   const [newMessageText, setNewMessageText] = useState("");
@@ -36,19 +37,10 @@ function MessagesContent() {
   const [searchTerm, setSearchTerm] = useState("");
   const [showMobileChat, setShowMobileChat] = useState(false);
 
-  // Realtor və İstifadəçiləri Axtarış üçün yükləyirik
-  useEffect(() => {
-    async function fetchUsers() {
-      try {
-        const res = await fetch("/api/users");
-        const json = await res.json();
-        if (json.data) setAllUsers(json.data);
-      } catch (err) {
-        console.error("İstifadəçilər yüklənmədi:", err);
-      }
-    }
-    fetchUsers();
-  }, []);
+  // Supabase ilike axtarış state-ləri
+  const [searchResults, setSearchResults] = useState([]);
+  const [searching, setSearching] = useState(false);
+  const [activeChatUser, setActiveChatUser] = useState(null);
 
   const messagesEndRef = useRef(null);
 
@@ -70,14 +62,23 @@ function MessagesContent() {
           );
           if (found) {
             setActiveConvId(found.id);
+            setActiveChatUser(found.other_user);
             setShowMobileChat(true);
           } else {
             // Hələ söhbət yoxdur, virtual olaraq aktivləşdiririk
             setActiveConvId("new_conversation");
+            // Rieltorun məlumatını axtarışdan və ya birbaşa gətiririk
+            fetch(`/api/users/search?q=${encodeURIComponent(targetUserId)}`)
+              .then((r) => r.json())
+              .then((d) => {
+                if (d.data?.[0]) setActiveChatUser(d.data[0]);
+              })
+              .catch(() => {});
             setShowMobileChat(true);
           }
         } else if (json.data.length > 0 && !activeConvId) {
           setActiveConvId(json.data[0].id);
+          setActiveChatUser(json.data[0].other_user);
         }
       }
     } catch (err) {
@@ -95,7 +96,36 @@ function MessagesContent() {
     }
   }, [loadingAuth, user, targetUserId, targetListingId]);
 
-  // 2. Aktiv söhbətin mesajlarını yüklə
+  // 2. Supabase Profiles üzrə ilike sorğusu (Rieltor və istifadəçi adları)
+  useEffect(() => {
+    if (!searchTerm.trim() || searchTerm.trim().length < 2) {
+      setSearchResults([]);
+      setSearching(false);
+      return;
+    }
+
+    setSearching(true);
+    const timer = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/users/search?q=${encodeURIComponent(searchTerm.trim())}`);
+        const json = await res.json();
+        if (json.success && Array.isArray(json.data)) {
+          // Öz profilini çıxarırıq
+          setSearchResults(json.data.filter((u) => String(u.id) !== String(user?.id)));
+        } else {
+          setSearchResults([]);
+        }
+      } catch (err) {
+        console.warn("Search error:", err);
+      } finally {
+        setSearching(false);
+      }
+    }, 250);
+
+    return () => clearTimeout(timer);
+  }, [searchTerm, user]);
+
+  // 3. Aktiv söhbətin mesajlarını yüklə
   useEffect(() => {
     if (!activeConvId || activeConvId === "new_conversation") {
       if (activeConvId === "new_conversation") setMessages([]);
@@ -111,7 +141,6 @@ function MessagesContent() {
         const json = await res.json();
         if (isSubscribed && json.success) {
           setMessages(json.data || []);
-          // Oxunmuş kimi işarələ
           if (user?.id) {
             fetch("/api/messages", {
               method: "PUT",
@@ -128,7 +157,7 @@ function MessagesContent() {
     };
 
     fetchMessages();
-    const interval = setInterval(fetchMessages, 6000); // 6 saniyədən bir polling
+    const interval = setInterval(fetchMessages, 6000);
 
     return () => {
       isSubscribed = false;
@@ -141,6 +170,23 @@ function MessagesContent() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
+  // Yeni söhbət başlat (axtarışdan seçildikdə)
+  const handleSelectSearchedUser = (selectedUser) => {
+    // Artıq söhbət varmı?
+    const existing = conversations.find((c) =>
+      c.participant_ids?.includes(selectedUser.id)
+    );
+    if (existing) {
+      setActiveConvId(existing.id);
+      setActiveChatUser(existing.other_user);
+    } else {
+      setActiveConvId("new_conversation");
+      setActiveChatUser(selectedUser);
+      setMessages([]);
+    }
+    setShowMobileChat(true);
+  };
+
   // Mesaj göndərmə
   const handleSendMessage = async (e) => {
     e.preventDefault();
@@ -152,6 +198,7 @@ function MessagesContent() {
 
     const activeConv = conversations.find((c) => c.id === activeConvId);
     const receiverId =
+      activeChatUser?.id ||
       targetUserId ||
       (activeConv?.participant_ids || []).find((id) => String(id) !== String(user.id));
 
@@ -165,6 +212,7 @@ function MessagesContent() {
           receiverId,
           listingId: activeConv?.listing_id || targetListingId || null,
           text: textToSend,
+          sender_name: user?.full_name || user?.user_metadata?.full_name || "Müştəri",
         }),
       });
 
@@ -183,12 +231,13 @@ function MessagesContent() {
   };
 
   const activeConv = conversations.find((c) => c.id === activeConvId);
+  const currentChatUser = activeChatUser || activeConv?.other_user;
 
   // Qonaq istifadəçi vəziyyəti
   if (!loadingAuth && !user) {
     return (
       <div className="min-h-[70vh] flex items-center justify-center p-4 bg-[#F8FAFC] dark:bg-slate-950">
-        <div className="max-w-md w-full p-8 rounded-2xl bg-white dark:bg-slate-900 border border-navy/10 dark:border-slate-800 text-center shadow-card space-y-4">
+        <div className="max-w-md w-full p-8 rounded-3xl bg-white dark:bg-slate-900 border border-navy/10 dark:border-slate-800 text-center shadow-card space-y-4">
           <div className="w-16 h-16 rounded-full bg-copper/10 text-copper flex items-center justify-center mx-auto text-3xl">
             <FiMessageSquare />
           </div>
@@ -207,7 +256,7 @@ function MessagesContent() {
             </Link>
             <Link
               href="/register"
-              className="px-6 py-2.5 rounded-xl border border-navy/20 dark:border-slate-700 text-navy dark:text-slate-200 text-xs font-bold hover:border-gold transition"
+              className="px-6 py-2.5 rounded-xl border border-navy/20 dark:border-slate-700 text-navy dark:text-slate-200 text-xs font-bold hover:border-copper transition"
             >
               Qeydiyyatdan Keç
             </Link>
@@ -219,24 +268,18 @@ function MessagesContent() {
 
   const filteredConversations = conversations.filter((c) => {
     const name = c.other_user?.full_name || "";
-    return name.toLowerCase().includes(searchTerm.toLowerCase());
+    const agency = c.other_user?.agency_name || "";
+    return (
+      name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      agency.toLowerCase().includes(searchTerm.toLowerCase())
+    );
   });
-
-  const searchedUsers = searchTerm.trim()
-    ? allUsers.filter(
-        (u) =>
-          u.id !== user?.id &&
-          (u.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            u.agency_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            u.role?.toLowerCase().includes(searchTerm.toLowerCase()))
-      )
-    : [];
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 min-h-[calc(100vh-140px)]">
-      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-navy/10 dark:border-slate-800 shadow-sm overflow-hidden flex h-[750px] relative">
+      <div className="bg-white dark:bg-slate-900 rounded-3xl border border-navy/10 dark:border-slate-800 shadow-sm overflow-hidden flex h-[750px] relative">
         
-        {/* Sol Panel: Söhbətlər Siyahısı */}
+        {/* Sol Panel: Söhbətlər və Supabase Axtarışı */}
         <div
           className={`w-full md:w-80 lg:w-96 border-r border-navy/10 dark:border-slate-800 flex flex-col shrink-0 ${
             showMobileChat ? "hidden md:flex" : "flex"
@@ -254,59 +297,70 @@ function MessagesContent() {
             </div>
 
             <div className="relative">
-              <FiSearch className="absolute left-3 top-3 text-navy/40 dark:text-slate-500 text-sm" />
+              <FiSearch className="absolute left-3.5 top-1/2 -translate-y-1/2 text-navy/40 dark:text-slate-500 text-xs" />
               <input
                 type="text"
-                placeholder="Rieltor və ya istifadəçi adı ilə axtar..."
+                placeholder="Rieltor və ya istifadəçi axtar (ilike)..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-9 pr-4 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-navy/10 dark:border-slate-700 text-xs text-navy dark:text-slate-100 outline-none placeholder:text-navy/40"
+                className="w-full pl-9 pr-4 py-2.5 rounded-2xl bg-slate-50 dark:bg-slate-800 border border-navy/10 dark:border-slate-700 text-xs text-navy dark:text-slate-100 outline-none focus:border-copper transition"
               />
             </div>
           </div>
 
-          {/* Siyahı */}
+          {/* Siyahı: Supabase Axtarış Nəticələri + Aktiv Söhbətlər */}
           <div className="flex-1 overflow-y-auto divide-y divide-navy/5 dark:divide-slate-800/60">
-            {searchTerm.trim() && searchedUsers.length > 0 && (
-              <div className="p-2 bg-copper/5">
-                <p className="text-[11px] font-bold text-copper px-3 py-1">Axtarış Nəticələri (İstifadəçi & Rieltorlar)</p>
-                {searchedUsers.map((usr) => (
-                  <button
-                    key={usr.id}
-                    type="button"
-                    onClick={() => {
-                      router.push(`/messages?user_id=${usr.id}`);
-                      setSearchTerm("");
-                    }}
-                    className="w-full p-2.5 text-left flex items-center gap-3 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition cursor-pointer"
-                  >
-                    <div className="w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center shrink-0 overflow-hidden">
-                      {usr.avatar_url ? (
-                        <img src={usr.avatar_url} alt="" className="w-full h-full object-cover" />
-                      ) : (
-                        <FiUser className="text-xs text-slate-500" />
-                      )}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs font-bold text-navy dark:text-white truncate">{usr.full_name}</p>
-                      <p className="text-[10px] text-navy/50 dark:text-slate-400 truncate">
-                        {usr.role === "realtor" ? `Rieltor (${usr.agency_name || "MÜLKERA"})` : "Müştəri"}
-                      </p>
-                    </div>
-                  </button>
-                ))}
+            {/* Supabase ilike Sorğu Nəticələri (Tapılan Rieltorlar/İstifadəçilər) */}
+            {searchResults.length > 0 && (
+              <div className="p-2 bg-copper/5 border-b border-copper/10">
+                <p className="px-2 py-1 text-[11px] font-bold text-copper uppercase tracking-wider flex items-center justify-between">
+                  <span>Bazada Tapılanlar ({searchResults.length})</span>
+                  {searching && <span className="text-[10px] lowercase font-normal">axtarılır...</span>}
+                </p>
+                <div className="space-y-1 mt-1">
+                  {searchResults.map((sr) => (
+                    <button
+                      key={sr.id}
+                      type="button"
+                      onClick={() => handleSelectSearchedUser(sr)}
+                      className="w-full p-2 rounded-xl hover:bg-white dark:hover:bg-slate-800 flex items-center justify-between text-left transition cursor-pointer"
+                    >
+                      <div className="flex items-center gap-2 min-w-0">
+                        <div className="w-8 h-8 rounded-full bg-navy/10 dark:bg-slate-700 flex items-center justify-center text-xs font-bold shrink-0 overflow-hidden">
+                          {sr.avatar_url ? (
+                            <img src={sr.avatar_url} alt="" className="w-full h-full object-cover" />
+                          ) : (
+                            <span>{sr.full_name?.[0] || "U"}</span>
+                          )}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-xs font-bold text-navy dark:text-slate-100 truncate">
+                            {sr.full_name}
+                          </p>
+                          <p className="text-[10px] text-navy/50 dark:text-slate-400 truncate">
+                            {sr.agency_name || (sr.role === "realtor" ? "Rieltor" : "Müştəri")}
+                          </p>
+                        </div>
+                      </div>
+                      <span className="text-[11px] font-bold text-copper flex items-center gap-0.5 shrink-0 ml-2">
+                        <FiPlus /> Yaz
+                      </span>
+                    </button>
+                  ))}
+                </div>
               </div>
             )}
 
+            {/* Mövcud Söhbətlər */}
             {loadingList ? (
               <div className="p-8 text-center text-xs text-navy/50 dark:text-slate-400">
                 Söhbətlər yüklənir...
               </div>
-            ) : filteredConversations.length === 0 ? (
+            ) : filteredConversations.length === 0 && searchResults.length === 0 ? (
               <div className="p-8 text-center text-xs text-navy/50 dark:text-slate-400 space-y-2">
-                <p>Hələ aktiv söhbətiniz yoxdur.</p>
+                <p>Axtarışa uyğun söhbət tapılmadı.</p>
                 <p className="text-[11px] text-navy/40">
-                  Yuxarıdakı axtarış xanasından rieltorların adını yazaraq birbaşa çata başlaya bilərsiniz.
+                  Yuxarıdakı axtarış xanasına rieltorun adını yazıb birbaşa yeni çat başlada bilərsiniz.
                 </p>
               </div>
             ) : (
@@ -318,6 +372,7 @@ function MessagesContent() {
                     type="button"
                     onClick={() => {
                       setActiveConvId(conv.id);
+                      setActiveChatUser(conv.other_user);
                       setShowMobileChat(true);
                     }}
                     className={`w-full p-3.5 text-left flex items-start gap-3 transition cursor-pointer ${
@@ -326,7 +381,7 @@ function MessagesContent() {
                         : "hover:bg-slate-50 dark:hover:bg-slate-800/40"
                     }`}
                   >
-                    <div className="relative w-11 h-11 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center shrink-0 overflow-hidden">
+                    <div className="relative w-11 h-11 rounded-2xl bg-slate-200 dark:bg-slate-700 flex items-center justify-center shrink-0 overflow-hidden border border-navy/5">
                       {conv.other_user?.avatar_url ? (
                         <img
                           src={conv.other_user.avatar_url}
@@ -357,14 +412,12 @@ function MessagesContent() {
                             : ""}
                         </span>
                       </div>
-
-                      <p className="text-[11px] text-navy/60 dark:text-slate-400 truncate">
-                        {conv.last_message || "Yeni söhbət"}
+                      <p className="text-xs text-navy/60 dark:text-slate-400 truncate">
+                        {conv.last_message || "Yeni söhbət başlandı"}
                       </p>
-
-                      {conv.listing && (
-                        <span className="mt-1 inline-flex items-center gap-1 text-[9px] font-semibold text-copper truncate max-w-full">
-                          <FiHome className="shrink-0" /> {conv.listing.title_az || "Əmlak haqqında"}
+                      {conv.other_user?.agency_name && (
+                        <span className="text-[10px] text-copper font-medium block truncate mt-0.5">
+                          {conv.other_user.agency_name}
                         </span>
                       )}
                     </div>
@@ -375,107 +428,87 @@ function MessagesContent() {
           </div>
         </div>
 
-        {/* Sağ Panel: Aktiv Çat Paneli */}
+        {/* Sağ Panel: Aktiv Söhbət Pəncərəsi */}
         <div
-          className={`flex-1 flex flex-col bg-slate-50/50 dark:bg-slate-900/50 ${
-            !showMobileChat ? "hidden md:flex" : "flex"
+          className={`flex-1 flex flex-col h-full bg-[#FAFAFA] dark:bg-slate-950 ${
+            showMobileChat ? "flex" : "hidden md:flex"
           }`}
         >
           {activeConvId ? (
             <>
-              {/* Çat Başlığı */}
-              <div className="p-3.5 sm:p-4 bg-white dark:bg-slate-900 border-b border-navy/10 dark:border-slate-800 flex items-center justify-between gap-3">
-                <div className="flex items-center gap-3 min-w-0">
+              {/* Çat Header */}
+              <div className="p-4 border-b border-navy/10 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-center justify-between z-10 shrink-0">
+                <div className="flex items-center gap-3">
                   <button
                     type="button"
                     onClick={() => setShowMobileChat(false)}
-                    className="md:hidden p-1.5 rounded-lg text-navy dark:text-white hover:bg-slate-100 dark:hover:bg-slate-800"
+                    className="md:hidden p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-navy dark:text-white"
                   >
                     <FiArrowLeft className="text-lg" />
                   </button>
 
-                  <div className="w-10 h-10 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center shrink-0 overflow-hidden">
-                    {activeConv?.other_user?.avatar_url ? (
+                  <div className="w-10 h-10 rounded-2xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center overflow-hidden border border-navy/10">
+                    {currentChatUser?.avatar_url ? (
                       <img
-                        src={activeConv.other_user.avatar_url}
+                        src={currentChatUser.avatar_url}
                         alt=""
                         className="w-full h-full object-cover"
                       />
                     ) : (
-                      <FiUser className="text-base text-slate-500" />
+                      <FiUser className="text-navy/50 dark:text-slate-400" />
                     )}
                   </div>
 
-                  <div className="min-w-0">
-                    <h3 className="text-sm font-bold text-navy dark:text-white truncate">
-                      {activeConv?.other_user?.full_name || "İstifadəçi"}
+                  <div>
+                    <h3 className="text-sm font-bold text-navy dark:text-white flex items-center gap-1.5">
+                      {currentChatUser?.full_name || "MÜLKERA Əlaqəsi"}
+                      <FiCheckCircle className="text-emerald-500 text-xs" />
                     </h3>
-                    <p className="text-[11px] text-navy/50 dark:text-slate-400 truncate">
-                      {activeConv?.other_user?.agency_name || "MÜLKERA platformasında əlaqə"}
+                    <p className="text-[11px] text-navy/50 dark:text-slate-400">
+                      {currentChatUser?.agency_name || (currentChatUser?.role === "realtor" ? "Lisenziyalı Rieltor" : "Aktiv istifadəçi")}
                     </p>
                   </div>
                 </div>
 
-                {/* Əlaqəli Əmlak Kartı (Əgər varsa) */}
-                {activeConv?.listing && (
+                {currentChatUser?.id && (
                   <Link
-                    href={`/listings/${activeConv.listing.id}`}
-                    target="_blank"
-                    className="hidden sm:flex items-center gap-2 p-1.5 pr-3 rounded-xl bg-slate-100 dark:bg-slate-800 hover:border-gold/40 border border-transparent transition text-xs max-w-xs truncate"
+                    href={`/realtors/${currentChatUser.id}`}
+                    className="text-xs font-bold text-copper hover:underline inline-flex items-center gap-1"
                   >
-                    {activeConv.listing.listing_photos?.[0]?.url && (
-                      <img
-                        src={activeConv.listing.listing_photos[0].url}
-                        alt=""
-                        className="w-8 h-8 rounded-lg object-cover shrink-0"
-                      />
-                    )}
-                    <div className="min-w-0">
-                      <p className="font-bold text-[11px] text-navy dark:text-white truncate">
-                        {activeConv.listing.title_az}
-                      </p>
-                      <p className="text-[10px] text-copper font-bold">
-                        {Number(activeConv.listing.price).toLocaleString()} AZN
-                      </p>
-                    </div>
+                    Profilə bax <FiExternalLink className="text-[10px]" />
                   </Link>
                 )}
               </div>
 
-              {/* Mesaj Axını */}
-              <div className="flex-1 p-4 overflow-y-auto space-y-3">
+              {/* Mesaj Siyahısı */}
+              <div className="flex-1 overflow-y-auto p-4 space-y-3">
                 {loadingMessages ? (
-                  <div className="text-center py-10 text-xs text-navy/40 dark:text-slate-500">
-                    Mesajlar oxunur...
+                  <div className="py-12 text-center text-xs text-navy/40 dark:text-slate-500">
+                    Mesajlar yüklənir...
                   </div>
                 ) : messages.length === 0 ? (
-                  <div className="text-center py-16 space-y-2">
-                    <FiMessageSquare className="text-3xl text-copper/40 mx-auto" />
-                    <p className="text-xs text-navy/60 dark:text-slate-400 font-medium">
-                      Bu istifadəçi ilə hələ mesaj yoxdur.
-                    </p>
-                    <p className="text-[11px] text-navy/40 dark:text-slate-500">
-                      İlk mesajı göndərərək mülk haqqında suallarınızı verin.
-                    </p>
+                  <div className="py-12 text-center text-xs text-navy/40 dark:text-slate-500 space-y-2">
+                    <p>Bu söhbətdə hələ heç bir mesaj yoxdur.</p>
+                    <p className="text-[11px]">İlk salamı siz göndərin!</p>
                   </div>
                 ) : (
                   messages.map((m) => {
-                    const isMe = String(m.sender_id) === String(user?.id);
+                    const isMine = String(m.sender_id) === String(user?.id);
                     return (
                       <div
                         key={m.id}
-                        className={`flex flex-col ${isMe ? "items-end" : "items-start"}`}
+                        className={`flex flex-col ${isMine ? "items-end" : "items-start"}`}
                       >
                         <div
-                          className={`max-w-[75%] sm:max-w-md px-4 py-2.5 rounded-2xl text-xs leading-relaxed shadow-sm ${
-                            isMe
-                              ? "bg-navy text-white rounded-br-none dark:bg-copper"
-                              : "bg-white dark:bg-slate-800 text-navy dark:text-slate-100 rounded-bl-none border border-navy/5 dark:border-slate-700"
+                          className={`max-w-[78%] px-4 py-2.5 rounded-2xl text-xs leading-relaxed shadow-2xs ${
+                            isMine
+                              ? "bg-navy dark:bg-copper text-white rounded-tr-none"
+                              : "bg-white dark:bg-slate-800 text-navy dark:text-slate-100 border border-navy/5 dark:border-slate-700 rounded-tl-none"
                           }`}
                         >
-                          <p className="whitespace-pre-wrap break-words font-medium">{m.text}</p>
+                          <p className="break-words">{m.text || m.content}</p>
                         </div>
-                        <span className="text-[9px] text-navy/40 dark:text-slate-500 mt-1 px-1">
+                        <span className="text-[9px] text-navy/35 dark:text-slate-500 mt-1 px-1">
                           {m.created_at
                             ? new Date(m.created_at).toLocaleTimeString([], {
                                 hour: "2-digit",
@@ -490,42 +523,42 @@ function MessagesContent() {
                 <div ref={messagesEndRef} />
               </div>
 
-              {/* Mesaj Daxiletmə Sahəsi */}
+              {/* Mesaj Göndərmə Formu */}
               <form
                 onSubmit={handleSendMessage}
-                className="p-3 bg-white dark:bg-slate-900 border-t border-navy/10 dark:border-slate-800 flex items-center gap-2"
+                className="p-3 bg-white dark:bg-slate-900 border-t border-navy/10 dark:border-slate-800 flex items-center gap-2 shrink-0"
               >
                 <input
                   type="text"
                   placeholder="Mesajınızı yazın..."
                   value={newMessageText}
                   onChange={(e) => setNewMessageText(e.target.value)}
-                  className="flex-1 px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-navy/10 dark:border-slate-700 text-xs text-navy dark:text-slate-100 outline-none focus:border-gold transition font-medium"
+                  className="flex-1 px-4 py-2.5 rounded-2xl bg-slate-50 dark:bg-slate-800 border border-navy/10 dark:border-slate-700 text-xs text-navy dark:text-slate-100 outline-none focus:border-copper transition"
                 />
                 <button
                   type="submit"
                   disabled={!newMessageText.trim() || sending}
-                  className="inline-flex items-center justify-center p-3 rounded-xl bg-navy text-white hover:bg-copper transition shadow-sm disabled:opacity-40 cursor-pointer"
+                  className="px-5 py-2.5 rounded-2xl bg-navy dark:bg-copper hover:bg-copper dark:hover:bg-amber-600 text-white text-xs font-bold transition flex items-center gap-1.5 shadow-sm cursor-pointer disabled:opacity-50"
                 >
-                  <FiSend className="text-sm" />
+                  <FiSend className="text-xs" />
+                  <span className="hidden sm:inline">Göndər</span>
                 </button>
               </form>
             </>
           ) : (
-            <div className="flex-1 flex flex-col items-center justify-center p-8 text-center text-navy/50 dark:text-slate-400 space-y-3">
+            <div className="flex-1 flex flex-col items-center justify-center p-8 text-center text-navy/50 dark:text-slate-500 space-y-3">
               <div className="w-16 h-16 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-2xl text-copper">
                 <FiMessageSquare />
               </div>
-              <h3 className="text-base font-bold text-navy dark:text-white">
-                Söhbət Seçin
+              <h3 className="text-base font-bold text-navy dark:text-slate-200">
+                Söhbət seçin və ya axtarın
               </h3>
-              <p className="text-xs max-w-xs">
-                Mesajlaşmaya başlamaq üçün sol paneldən söhbət seçin və ya elan səhifələrindən əlaqə yaradın.
+              <p className="text-xs max-w-sm">
+                Sol paneldəki söhbətlərdən birinə klikləyin və ya axtarış vasitəsilə rieltor tapıb mesaj yazın.
               </p>
             </div>
           )}
         </div>
-
       </div>
     </div>
   );
@@ -533,13 +566,7 @@ function MessagesContent() {
 
 export default function MessagesPage() {
   return (
-    <Suspense
-      fallback={
-        <div className="min-h-[70vh] flex items-center justify-center bg-[#F8FAFC] dark:bg-slate-950">
-          <div className="w-10 h-10 border-4 border-copper border-t-transparent rounded-full animate-spin" />
-        </div>
-      }
-    >
+    <Suspense fallback={<div className="py-20 text-center text-xs font-medium">Yüklənir...</div>}>
       <MessagesContent />
     </Suspense>
   );
