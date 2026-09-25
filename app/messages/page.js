@@ -26,6 +26,7 @@ function MessagesContent() {
   const targetListingId = searchParams.get("listing_id");
 
   const [conversations, setConversations] = useState([]);
+  const [allUsers, setAllUsers] = useState([]);
   const [activeConvId, setActiveConvId] = useState(null);
   const [messages, setMessages] = useState([]);
   const [newMessageText, setNewMessageText] = useState("");
@@ -34,6 +35,20 @@ function MessagesContent() {
   const [sending, setSending] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [showMobileChat, setShowMobileChat] = useState(false);
+
+  // Realtor və İstifadəçiləri Axtarış üçün yükləyirik
+  useEffect(() => {
+    async function fetchUsers() {
+      try {
+        const res = await fetch("/api/users");
+        const json = await res.json();
+        if (json.data) setAllUsers(json.data);
+      } catch (err) {
+        console.error("İstifadəçilər yüklənmədi:", err);
+      }
+    }
+    fetchUsers();
+  }, []);
 
   const messagesEndRef = useRef(null);
 
@@ -207,6 +222,16 @@ function MessagesContent() {
     return name.toLowerCase().includes(searchTerm.toLowerCase());
   });
 
+  const searchedUsers = searchTerm.trim()
+    ? allUsers.filter(
+        (u) =>
+          u.id !== user?.id &&
+          (u.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            u.agency_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            u.role?.toLowerCase().includes(searchTerm.toLowerCase()))
+      )
+    : [];
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 min-h-[calc(100vh-140px)]">
       <div className="bg-white dark:bg-slate-900 rounded-2xl border border-navy/10 dark:border-slate-800 shadow-sm overflow-hidden flex h-[750px] relative">
@@ -232,7 +257,7 @@ function MessagesContent() {
               <FiSearch className="absolute left-3 top-3 text-navy/40 dark:text-slate-500 text-sm" />
               <input
                 type="text"
-                placeholder="Söhbətlərdə axtar..."
+                placeholder="Rieltor və ya istifadəçi adı ilə axtar..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-full pl-9 pr-4 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-navy/10 dark:border-slate-700 text-xs text-navy dark:text-slate-100 outline-none placeholder:text-navy/40"
@@ -242,6 +267,37 @@ function MessagesContent() {
 
           {/* Siyahı */}
           <div className="flex-1 overflow-y-auto divide-y divide-navy/5 dark:divide-slate-800/60">
+            {searchTerm.trim() && searchedUsers.length > 0 && (
+              <div className="p-2 bg-copper/5">
+                <p className="text-[11px] font-bold text-copper px-3 py-1">Axtarış Nəticələri (İstifadəçi & Rieltorlar)</p>
+                {searchedUsers.map((usr) => (
+                  <button
+                    key={usr.id}
+                    type="button"
+                    onClick={() => {
+                      router.push(`/messages?user_id=${usr.id}`);
+                      setSearchTerm("");
+                    }}
+                    className="w-full p-2.5 text-left flex items-center gap-3 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition cursor-pointer"
+                  >
+                    <div className="w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center shrink-0 overflow-hidden">
+                      {usr.avatar_url ? (
+                        <img src={usr.avatar_url} alt="" className="w-full h-full object-cover" />
+                      ) : (
+                        <FiUser className="text-xs text-slate-500" />
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-bold text-navy dark:text-white truncate">{usr.full_name}</p>
+                      <p className="text-[10px] text-navy/50 dark:text-slate-400 truncate">
+                        {usr.role === "realtor" ? `Rieltor (${usr.agency_name || "MÜLKERA"})` : "Müştəri"}
+                      </p>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
+
             {loadingList ? (
               <div className="p-8 text-center text-xs text-navy/50 dark:text-slate-400">
                 Söhbətlər yüklənir...
@@ -250,7 +306,7 @@ function MessagesContent() {
               <div className="p-8 text-center text-xs text-navy/50 dark:text-slate-400 space-y-2">
                 <p>Hələ aktiv söhbətiniz yoxdur.</p>
                 <p className="text-[11px] text-navy/40">
-                  Elan səhifələrindən mülk sahibləri ilə birbaşa mesajlaşa bilərsiniz.
+                  Yuxarıdakı axtarış xanasından rieltorların adını yazaraq birbaşa çata başlaya bilərsiniz.
                 </p>
               </div>
             ) : (

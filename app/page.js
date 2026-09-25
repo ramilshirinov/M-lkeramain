@@ -177,6 +177,50 @@ export default function HomePage() {
           </div>
         )}
       </section>
+
+      {/* Haqqımızda (About Us) Video Bölməsi */}
+      <section className="bg-white dark:bg-slate-900 border-t border-navy/10 dark:border-slate-800 py-16 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-10 items-center">
+          <div className="space-y-4">
+            <span className="px-3.5 py-1 rounded-full text-xs font-bold bg-copper/10 text-copper uppercase tracking-wider">
+              {dict.about?.tag || "Haqqımızda & Platforma Təqdimatı"}
+            </span>
+            <h2 className="text-2xl sm:text-4xl font-extrabold font-heading text-navy dark:text-white leading-tight">
+              Sizin mülkünüz, Azərbaycanda əmlak almaq, satmaq və kirayə vermək üçün etibarlı platforma
+            </h2>
+            <p className="text-sm text-navy/70 dark:text-slate-300 leading-relaxed font-medium">
+              MÜLKERA — peşəkar agentlik standartlarına cavab verən, lisenziyalı rieltorları və etibarlı əmlak sahiblərini alıcılar ilə birləşdirən müasir daşınmaz əmlak ekosistemidir. Virtual canlı təqdimatlar, dəqiq interaktiv xəritə və şəffaf reytinq alqoritmi ilə xidmətinizdəyik.
+            </p>
+            <div className="pt-2 flex flex-wrap gap-4">
+              <Link
+                href="/listings"
+                className="px-6 py-3 rounded-xl bg-navy text-white hover:bg-copper font-bold text-xs transition shadow-sm"
+              >
+                {dict.home?.viewAll || "Elanları kəşf et"}
+              </Link>
+              <Link
+                href="/realtors"
+                className="px-6 py-3 rounded-xl border border-navy/15 dark:border-slate-700 font-bold text-xs text-navy dark:text-slate-200 hover:border-copper hover:text-copper transition"
+              >
+                Top Rieltorlarımız
+              </Link>
+            </div>
+          </div>
+
+          <div className="relative rounded-3xl overflow-hidden shadow-2xl border border-navy/10 dark:border-slate-800 group bg-slate-900">
+            <div className="aspect-video w-full relative flex items-center justify-center">
+              <video
+                controls
+                poster="/images/logo-full.png"
+                className="w-full h-full object-cover"
+              >
+                <source src="https://www.w3schools.com/html/mov_bbb.mp4" type="video/mp4" />
+                Brauzeriniz video pleyeri dəstəkləmir.
+              </video>
+            </div>
+          </div>
+        </div>
+      </section>
     </div>
   );
 }

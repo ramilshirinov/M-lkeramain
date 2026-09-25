@@ -121,7 +121,7 @@ export default function MapPage() {
   const [roomsFilter, setRoomsFilter] = useState("all");
   const [minPrice, setMinPrice] = useState("");
   const [maxPrice, setMaxPrice] = useState("");
-  const [mapType, setMapType] = useState("standard"); // "standard" | "satellite" | "dark"
+  const [mapType, setMapType] = useState("standard"); // "standard" | "satellite"
 
   // Panel və Interaksiya
   const [panelOpen, setPanelOpen] = useState(false);
@@ -333,7 +333,7 @@ export default function MapPage() {
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          {/* Xəritə növü (Peyk / Satellite, Standart, Qaranlıq) */}
+          {/* Xəritə növü (Peyk / Satellite, Standart) */}
           <div className="flex items-center bg-slate-100 dark:bg-slate-800 p-0.5 rounded-xl border border-navy/10 dark:border-slate-700 text-xs">
             <button
               type="button"
@@ -356,17 +356,6 @@ export default function MapPage() {
               }`}
             >
               🛰️ Peyk (Satellite)
-            </button>
-            <button
-              type="button"
-              onClick={() => setMapType("dark")}
-              className={`px-2.5 py-1 font-bold rounded-lg transition cursor-pointer ${
-                mapType === "dark"
-                  ? "bg-white dark:bg-slate-900 text-navy dark:text-white shadow-sm"
-                  : "text-navy/60 dark:text-slate-400 hover:text-navy dark:hover:text-white"
-              }`}
-            >
-              🌙 Qaranlıq
             </button>
           </div>
 
@@ -618,12 +607,6 @@ export default function MapPage() {
                   attribution='Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community'
                   url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
                   maxZoom={19}
-                />
-              ) : mapType === "dark" ? (
-                <TileLayer
-                  key="dark"
-                  attribution='&copy; <a href="https://carto.com/">CARTO</a>'
-                  url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
                 />
               ) : (
                 <TileLayer

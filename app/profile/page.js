@@ -32,7 +32,13 @@ export default function ProfilePage() {
     agency_name: "MÜLKERA Real Estate",
     facebook_url: "",
     instagram_url: "",
+    tiktok_url: "",
+    telegram_url: "",
     whatsapp: "",
+    commission_rate: "1.5%",
+    legal_status: "",
+    bio: "",
+    license_number: "",
     email_notifications: true,
     sms_notifications: false,
   });
@@ -68,7 +74,13 @@ export default function ProfilePage() {
       agency_name: profile?.agency_name || "MÜLKERA Real Estate",
       facebook_url: profile?.facebook_url || "",
       instagram_url: profile?.instagram_url || "",
+      tiktok_url: profile?.tiktok_url || "",
+      telegram_url: profile?.telegram_url || "",
       whatsapp: profile?.whatsapp || "",
+      commission_rate: profile?.commission_rate || "1.5%",
+      legal_status: profile?.legal_status || "",
+      bio: profile?.bio || "",
+      license_number: profile?.license_number || "",
       email_notifications: profile?.email_notifications ?? true,
       sms_notifications: profile?.sms_notifications ?? false,
     });
@@ -142,7 +154,13 @@ export default function ProfilePage() {
         agency_name: form.agency_name,
         facebook_url: form.facebook_url,
         instagram_url: form.instagram_url,
+        tiktok_url: form.tiktok_url,
+        telegram_url: form.telegram_url,
         whatsapp: form.whatsapp,
+        commission_rate: form.commission_rate,
+        legal_status: form.legal_status,
+        bio: form.bio,
+        license_number: form.license_number,
         email_notifications: form.email_notifications,
         sms_notifications: form.sms_notifications,
       });
@@ -321,6 +339,69 @@ export default function ProfilePage() {
           />
         </div>
 
+        {/* Rieltor Detalları (Əgər Rieltor hesabıdırsa) */}
+        {profile?.role === "realtor" && (
+          <div className="pt-2 border-t border-navy/10 dark:border-slate-800 space-y-4">
+            <p className="text-xs font-bold uppercase tracking-wider text-navy dark:text-slate-200">
+              Rieltor Peşəkar Detalları
+            </p>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-navy/70 dark:text-slate-300 mb-1.5">
+                  Komissiya Faizi (%)
+                </label>
+                <input
+                  type="text"
+                  value={form.commission_rate}
+                  onChange={(e) => setForm({ ...form, commission_rate: e.target.value })}
+                  placeholder="Məsələn: 1.5%"
+                  className="w-full rounded-xl bg-slate-50 dark:bg-slate-800 border border-navy/15 dark:border-slate-700 px-4 py-3 text-sm outline-none text-navy dark:text-white placeholder:text-navy/40 dark:placeholder:text-slate-500 focus:border-copper transition"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-navy/70 dark:text-slate-300 mb-1.5">
+                  Hüquqi Status / VÖEN
+                </label>
+                <input
+                  type="text"
+                  value={form.legal_status}
+                  onChange={(e) => setForm({ ...form, legal_status: e.target.value })}
+                  placeholder="VÖEN: 1403928191"
+                  className="w-full rounded-xl bg-slate-50 dark:bg-slate-800 border border-navy/15 dark:border-slate-700 px-4 py-3 text-sm outline-none text-navy dark:text-white placeholder:text-navy/40 dark:placeholder:text-slate-500 focus:border-copper transition"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-navy/70 dark:text-slate-300 mb-1.5">
+                Lisenziya / Sertifikat Nömrəsi
+              </label>
+              <input
+                type="text"
+                value={form.license_number}
+                onChange={(e) => setForm({ ...form, license_number: e.target.value })}
+                placeholder="LIC-123456"
+                className="w-full rounded-xl bg-slate-50 dark:bg-slate-800 border border-navy/15 dark:border-slate-700 px-4 py-3 text-sm outline-none text-navy dark:text-white placeholder:text-navy/40 dark:placeholder:text-slate-500 focus:border-copper transition"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-navy/70 dark:text-slate-300 mb-1.5">
+                Haqqında (Bio)
+              </label>
+              <textarea
+                rows={3}
+                value={form.bio}
+                onChange={(e) => setForm({ ...form, bio: e.target.value })}
+                placeholder="Təcrübəniz, xidmət sahələriniz və üstünlükləriniz haqqında qısa məlumat..."
+                className="w-full rounded-xl bg-slate-50 dark:bg-slate-800 border border-navy/15 dark:border-slate-700 px-4 py-3 text-sm outline-none text-navy dark:text-white placeholder:text-navy/40 dark:placeholder:text-slate-500 focus:border-copper transition resize-none"
+              />
+            </div>
+          </div>
+        )}
+
         {/* Sosial / Əlaqə Linkləri */}
         <div className="pt-2 border-t border-navy/10 dark:border-slate-800 space-y-4">
           <p className="text-xs font-bold uppercase tracking-wider text-navy dark:text-slate-200">
@@ -345,6 +426,32 @@ export default function ProfilePage() {
               value={form.instagram_url}
               onChange={(e) => setForm({ ...form, instagram_url: e.target.value })}
               placeholder="Instagram profil linki"
+              className="w-full rounded-xl bg-slate-50 dark:bg-slate-800 border border-navy/15 dark:border-slate-700 pl-11 pr-4 py-3 text-sm outline-none text-navy dark:text-white placeholder:text-navy/40 dark:placeholder:text-slate-500 focus:border-copper transition"
+            />
+          </div>
+
+          <div className="relative">
+            <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-navy/40 dark:text-slate-500 text-xs font-extrabold">
+              TikTok
+            </span>
+            <input
+              type="text"
+              value={form.tiktok_url}
+              onChange={(e) => setForm({ ...form, tiktok_url: e.target.value })}
+              placeholder="TikTok profil linki (@istifadəçi_adı)"
+              className="w-full rounded-xl bg-slate-50 dark:bg-slate-800 border border-navy/15 dark:border-slate-700 pl-16 pr-4 py-3 text-sm outline-none text-navy dark:text-white placeholder:text-navy/40 dark:placeholder:text-slate-500 focus:border-copper transition"
+            />
+          </div>
+
+          <div className="relative">
+            <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-navy/40 dark:text-slate-500 text-xs font-extrabold">
+              TG
+            </span>
+            <input
+              type="text"
+              value={form.telegram_url}
+              onChange={(e) => setForm({ ...form, telegram_url: e.target.value })}
+              placeholder="Telegram linki və ya istifadəçi adı"
               className="w-full rounded-xl bg-slate-50 dark:bg-slate-800 border border-navy/15 dark:border-slate-700 pl-11 pr-4 py-3 text-sm outline-none text-navy dark:text-white placeholder:text-navy/40 dark:placeholder:text-slate-500 focus:border-copper transition"
             />
           </div>

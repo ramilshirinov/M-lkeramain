@@ -187,7 +187,18 @@
       "satisfaction_rate": "100%",
       "sales_speed_days": 10,
       "reviews_count": 0,
-      "created_at": "2026-09-24T06:42:01.053Z"
+      "created_at": "2026-09-24T06:42:01.053Z",
+      "monthly_rank": 1,
+      "monthly_score": 125,
+      "award": {
+        "rank": 1,
+        "title": "Ayın Satış Çempionu",
+        "badge": "🥇 Qızıl Tac",
+        "icon": "👑",
+        "color": "from-amber-400 to-yellow-600",
+        "perks": "Top vitrin mövqeyi, 0% komissiya endirimi, rəsmi sertifikat",
+        "awarded_month": "2026-09"
+      }
     }
   ],
   "pending_realtors": [],
@@ -199,5 +210,25 @@
   "vip_promotions": [],
   "conversations": [],
   "messages": [],
-  "live_waiting_list": []
+  "live_waiting_list": [],
+  "realtor_ranking_history": {
+    "2026-09": [
+      {
+        "realtor_id": "u-1790232121053",
+        "name": "Ramil Şirinov",
+        "agency": "Mülkera Əmlak",
+        "rank": 1,
+        "score": 125,
+        "award": {
+          "rank": 1,
+          "title": "Ayın Satış Çempionu",
+          "badge": "🥇 Qızıl Tac",
+          "icon": "👑",
+          "color": "from-amber-400 to-yellow-600",
+          "perks": "Top vitrin mövqeyi, 0% komissiya endirimi, rəsmi sertifikat",
+          "awarded_month": "2026-09"
+        }
+      }
+    ]
+  }
 }
