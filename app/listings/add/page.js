@@ -11,7 +11,6 @@ import {
 } from "@/lib/listings";
 import { AZERBAIJAN_REGIONS } from "@/constants/locations";
 import MediaUploader from "@/components/MediaUploader";
-import LocationPicker from "@/components/LocationPicker";
 import { FiPlusCircle, FiCheckCircle, FiHome, FiDollarSign, FiMapPin, FiLayers } from "react-icons/fi";
 import dynamic from "next/dynamic";
 

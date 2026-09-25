@@ -64,6 +64,17 @@ export default function Navbar() {
             <FiAward className="text-copper" /> Rieltorlar
           </Link>
 
+          {/* AI Rieltor (Coming Soon) Menyusu */}
+          <div
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-orange-50 dark:bg-orange-950/40 border border-orange-200 dark:border-orange-800 text-navy dark:text-slate-200 text-sm font-semibold select-none cursor-default"
+            title="Süni intellektlə danışaraq mülk axtarışı — Tezliklə"
+          >
+            <span>AI Rieltor</span>
+            <span className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-gradient-to-r from-red-500 to-orange-500 text-white shadow-xs">
+              Coming Soon
+            </span>
+          </div>
+
           <Link href="/live" className={`flex items-center gap-1.5 ${linkClass}`}>
             <span className="relative flex h-2 w-2">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
