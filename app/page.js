@@ -68,18 +68,18 @@ export default function HomePage() {
   return (
     <div className="min-h-screen bg-[#F8FAFC] dark:bg-slate-950 text-navy dark:text-slate-100">
       {/* Hero Section */}
-      <section className="relative bg-white dark:bg-slate-900 text-navy dark:text-slate-100 py-20 px-4 sm:px-6 lg:px-8 text-center overflow-hidden border-b border-navy/10 dark:border-slate-800 shadow-sm">
-        <div className="max-w-4xl mx-auto space-y-6">
+      <section className="relative py-24 px-4 sm:px-6 lg:px-8 text-center overflow-hidden border-b border-navy/10 dark:border-slate-800 shadow-sm bg-cover bg-center bg-no-style" style={{ backgroundImage: "linear-gradient(rgba(15, 23, 42, 0.75), rgba(15, 23, 42, 0.85)), url('/images/sumqayit-hero.jpg')" }}>
+        <div className="max-w-4xl mx-auto space-y-6 relative z-10 text-white">
           {/* Sloqan */}
           <span className="inline-block px-4 py-1.5 rounded-full bg-gold-50 dark:bg-slate-800 text-copper text-xs font-semibold tracking-wide uppercase border border-gold/30 shadow-sm">
             {dict.brand || "MÜLKERA"} — {dict.slogan || "Sizin eranız, sizin mülkünüz."}
           </span>
 
-          <h1 className="text-4xl sm:text-6xl font-extrabold font-heading tracking-tight text-navy dark:text-white">
+          <h1 className="text-4xl sm:text-6xl font-extrabold font-heading tracking-tight text-white drop-shadow-md">
             {dict.home?.heroTitle || "Arzuladığınız Mülkü MÜLKERA ilə Tapın"}
           </h1>
 
-          <p className="text-base sm:text-lg text-navy/70 dark:text-slate-300 max-w-2xl mx-auto font-medium">
+          <p className="text-base sm:text-lg text-slate-200 max-w-2xl mx-auto font-medium drop-shadow-sm">
             {dict.home?.heroSubtitle ||
               "Bakıda və bölgələrdə elit mənzillər, villalar və kommersiya obyektləri."}
           </p>

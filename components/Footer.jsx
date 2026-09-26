@@ -57,13 +57,13 @@ export default function Footer() {
             <h4 className="text-xs font-bold uppercase tracking-wider text-white">Əlaqə & Dəstək</h4>
             <ul className="space-y-2 text-slate-400">
               <li className="flex items-center gap-2">
-                <FiMapPin className="text-copper" /> Bakı şəhəri, Nəsimi rayonu
+                <FiMapPin className="text-copper" /> Ünvan: Sumqayıt şəhəri
               </li>
               <li className="flex items-center gap-2">
-                <FiPhone className="text-copper" /> +994 12 400 00 00
+                <FiPhone className="text-copper" /> Əlaqə Nömrəsi: +994 50 667 50 08
               </li>
               <li className="flex items-center gap-2">
-                <FiMail className="text-copper" /> info@mulkera.az
+                <FiMail className="text-copper" /> E-poçt: ramilshirinovwork@gmail.com
               </li>
             </ul>
           </div>

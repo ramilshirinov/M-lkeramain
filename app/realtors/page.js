@@ -20,6 +20,8 @@ export default function RealtorsPage() {
   const [realtors, setRealtors] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [regionFilter, setRegionFilter] = useState("all");
+  const [commissionFilter, setCommissionFilter] = useState("all");
   const [sortBy, setSortBy] = useState("score"); // "score", "rating", "sales", "speed"
   const [recalculating, setRecalculating] = useState(false);
   const [showRegisterModal, setShowRegisterModal] = useState(false);
@@ -95,6 +97,27 @@ export default function RealtorsPage() {
     }
   };
 
+  const AZ_CITIES = [
+    "Bütün Şəhər və Rayonlar",
+    "Bakı",
+    "Sumqayıt",
+    "Xırdalan",
+    "Gəncə",
+    "Naxçıvan",
+    "Mingəçevir",
+    "Lənkəran",
+    "Şəki",
+    "Yevlax",
+    "Quba",
+    "Qusar",
+    "Şamaxı",
+    "Qəbələ",
+    "Göyçay",
+    "Bərdə",
+    "Salyan",
+    "Şəmkir"
+  ];
+
   const filteredRealtors = useMemo(() => {
     let list = [...realtors];
     if (search.trim()) {
@@ -102,8 +125,26 @@ export default function RealtorsPage() {
       list = list.filter(
         (r) =>
           (r.full_name || "").toLowerCase().includes(q) ||
-          (r.agency_name || "").toLowerCase().includes(q)
+          (r.agency_name || "").toLowerCase().includes(q) ||
+          (r.bio || "").toLowerCase().includes(q)
       );
+    }
+
+    if (regionFilter !== "all") {
+      const reg = regionFilter.toLowerCase();
+      list = list.filter(
+        (r) =>
+          (r.agency_name || "").toLowerCase().includes(reg) ||
+          (r.bio || "").toLowerCase().includes(reg) ||
+          (r.full_name || "").toLowerCase().includes(reg)
+      );
+    }
+
+    if (commissionFilter !== "all") {
+      list = list.filter((r) => {
+        const comm = (r.commission_rate || "").toString();
+        return comm.includes(commissionFilter);
+      });
     }
 
     if (sortBy === "sales") {
@@ -159,19 +200,44 @@ export default function RealtorsPage() {
         </div>
 
         {/* Axtarış və Sıralama Filtri */}
-        <div className="bg-white dark:bg-slate-900 rounded-2xl p-4 sm:p-5 border border-navy/10 dark:border-slate-800 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="relative w-full sm:w-80">
-            <FiSearch className="absolute left-3.5 top-1/2 -translate-y-1/2 text-copper" />
-            <input
-              type="text"
-              placeholder="Rieltor və ya agentlik adı..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-navy/15 dark:border-slate-700 text-xs text-navy dark:text-slate-100 outline-none focus:border-copper transition"
-            />
+        <div className="bg-white dark:bg-slate-900 rounded-2xl p-4 sm:p-5 border border-navy/10 dark:border-slate-800 shadow-sm flex flex-col lg:flex-row items-center justify-between gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 w-full lg:w-auto flex-1">
+            <div className="relative w-full">
+              <FiSearch className="absolute left-3.5 top-1/2 -translate-y-1/2 text-copper" />
+              <input
+                type="text"
+                placeholder="Rieltor və ya agentlik adı..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-navy/15 dark:border-slate-700 text-xs text-navy dark:text-slate-100 outline-none focus:border-copper transition"
+              />
+            </div>
+
+            <select
+              value={regionFilter}
+              onChange={(e) => setRegionFilter(e.target.value)}
+              className="w-full px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-navy/15 dark:border-slate-700 text-xs text-navy dark:text-slate-100 outline-none focus:border-copper transition"
+            >
+              {AZ_CITIES.map((city, idx) => (
+                <option key={idx} value={idx === 0 ? "all" : city}>
+                  {city}
+                </option>
+              ))}
+            </select>
+
+            <select
+              value={commissionFilter}
+              onChange={(e) => setCommissionFilter(e.target.value)}
+              className="w-full px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-navy/15 dark:border-slate-700 text-xs text-navy dark:text-slate-100 outline-none focus:border-copper transition"
+            >
+              <option value="all">Bütün Komissiyalar</option>
+              <option value="1%">1% Komissiya</option>
+              <option value="1.5%">1.5% Komissiya</option>
+              <option value="2%">2% Komissiya</option>
+            </select>
           </div>
 
-          <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+          <div className="flex items-center gap-2 w-full lg:w-auto justify-end">
             <span className="text-xs font-semibold text-navy/60 dark:text-slate-400 whitespace-nowrap">
               Sırala:
             </span>
