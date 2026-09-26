@@ -60,7 +60,7 @@ export default function Footer() {
                 <FiMapPin className="text-copper" /> Ünvan: Sumqayıt şəhəri
               </li>
               <li className="flex items-center gap-2">
-                <FiPhone className="text-copper" /> Əlaqə Nömrəsi: +994 50 667 50 08
+                <FiPhone className="text-copper" /> Əlaqə Nömrəsi: +994 50 666 75 08
               </li>
               <li className="flex items-center gap-2">
                 <FiMail className="text-copper" /> E-poçt: ramilshirinovwork@gmail.com
