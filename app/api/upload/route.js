@@ -16,7 +16,12 @@ export async function POST(req) {
 
     // 1. JSON ilə base64 və ya birbaşa URL göndərildikdə
     if (contentType.includes("application/json")) {
-      const body = await req.json();
+      let body;
+      try {
+        body = await req.json();
+      } catch (e) {
+        return NextResponse.json({ success: false, message: "Fayl məlumatı oxunmadı və ya çox böyükdür." }, { status: 400 });
+      }
       const { dataUrl, fileName, type = "image" } = body;
 
       if (!dataUrl) {

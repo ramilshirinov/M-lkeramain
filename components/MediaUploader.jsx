@@ -3,6 +3,60 @@
 import { useState } from "react";
 import { FiUpload, FiVideo, FiX, FiLoader } from "react-icons/fi";
 
+async function compressImageFile(file) {
+  if (!file || !file.type.startsWith("image/")) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }
+
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = (event) => {
+      const img = new Image();
+      img.src = event.target.result;
+      img.onload = () => {
+        const MAX_WIDTH = 1920;
+        const MAX_HEIGHT = 1920;
+        let width = img.width;
+        let height = img.height;
+
+        if (width > height) {
+          if (width > MAX_WIDTH) {
+            height = Math.round((height * MAX_WIDTH) / width);
+            width = MAX_WIDTH;
+          }
+        } else {
+          if (height > MAX_HEIGHT) {
+            width = Math.round((width * MAX_HEIGHT) / height);
+            height = MAX_HEIGHT;
+          }
+        }
+
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(img, 0, 0, width, height);
+
+        const compressedDataUrl = canvas.toDataURL("image/jpeg", 0.8);
+        resolve(compressedDataUrl);
+      };
+      img.onerror = () => {
+        resolve(event.target.result);
+      };
+    };
+    reader.onerror = () => {
+      resolve("");
+    };
+  });
+}
+
 export default function MediaUploader({
   files = [],
   setFiles,
@@ -34,27 +88,26 @@ export default function MediaUploader({
             body: formData,
           });
 
-          const json = await res.json();
-          if (json.success && json.url) {
+          let json = null;
+          const contentType = res.headers.get("content-type") || "";
+          if (contentType.includes("application/json")) {
+            try {
+              json = await res.json();
+            } catch (e) {
+              json = null;
+            }
+          }
+
+          if (res.ok && json?.success && json?.url) {
             uploaded.push({ url: json.url, name: json.name || file.name, type });
           } else {
-            // Fallback: FileReader data URL
-            const reader = new FileReader();
-            const dataUrl = await new Promise((resolve, reject) => {
-              reader.onload = () => resolve(reader.result);
-              reader.onerror = reject;
-              reader.readAsDataURL(file);
-            });
-            uploaded.push({ url: dataUrl, name: file.name, type });
+            // Standard fallback if server fails or returns Data URL
+            const compressedUrl = await compressImageFile(file);
+            uploaded.push({ url: compressedUrl, name: file.name, type });
           }
         } catch (innerErr) {
-          // Fallback FileReader
-          const reader = new FileReader();
-          const dataUrl = await new Promise((resolve, reject) => {
-            reader.onload = () => resolve(reader.result);
-            reader.onerror = reject;
-            reader.readAsDataURL(file);
-          });
+          // Fallback FileReader with compression
+          const dataUrl = await compressImageFile(file);
           uploaded.push({ url: dataUrl, name: file.name, type });
         }
       }

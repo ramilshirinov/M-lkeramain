@@ -44,7 +44,15 @@ export async function GET(req) {
 
 export async function POST(req) {
   try {
-    const body = await req.json();
+    let body;
+    try {
+      body = await req.json();
+    } catch (parseErr) {
+      return NextResponse.json(
+        { success: false, message: "Sorğunun həcmi böyükdür və ya JSON məlumatı oxuna bilmədi." },
+        { status: 400 }
+      );
+    }
     const { payload, photoUrls = [], videoUrls = [] } = body;
 
     if (!payload || !payload.title_az || !payload.price) {
