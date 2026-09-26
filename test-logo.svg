@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 600" width="800" height="600" fill="none">
+  <!-- House Emblem (M Shape) -->
+  <g id="emblem">
+    <!-- Main M-House Body -->
+    <path d="M 60 260 
+             L 170 140 
+             L 280 260 
+             L 280 500 
+             L 220 500 
+             L 220 320 
+             L 170 260 
+             L 120 320 
+             L 120 500 
+             L 60 500 
+             Z" 
+          fill="#111827"/>
+    <!-- Door on right pillar -->
+    <rect x="235" y="420" width="30" height="60" rx="3" fill="#FFFFFF"/>
+    <rect x="240" y="426" width="20" height="22" rx="2" fill="#111827"/>
+  </g>
+
+  <!-- Typography -->
+  <g id="typography" font-family="system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif">
+    <!-- MÜLKERA -->
+    <text x="330" y="270" font-size="82" font-weight="900" letter-spacing="1">
+      <tspan fill="#111827">MÜLK</tspan><tspan fill="#C59B27">ERA</tspan>
+    </text>
+    <!-- ƏMLAK SATIŞI AGENTLİYİ -->
+    <text x="332" y="335" font-size="34" font-weight="800" fill="#111827" letter-spacing="3.5">
+      ƏMLAK SATIŞI AGENTLİYİ
+    </text>
+    <!-- Sizin eranız, sizin mülkünüz. -->
+    <text x="334" y="415" font-size="36" font-weight="400" fill="#111827" letter-spacing="0.5">
+      Sizin eranız, sizin mülkünüz.
+    </text>
+  </g>
+</svg>
