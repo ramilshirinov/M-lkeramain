@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useApp } from "@/context/AppContext";
 import ListingCard from "@/components/ListingCard";
+import HeroSection from "@/components/HeroSection";
 import { FiSearch, FiMapPin } from "react-icons/fi";
 
 // listing_photos, categories və districts sorğuya qoşulur (şəkil problemi buradan həll olunur)
@@ -53,8 +54,9 @@ export default function HomePage() {
     };
   }, [supabase, selectedCategory]);
 
-  const goSearch = () => {
-    router.push(`/listings?search=${encodeURIComponent(searchQuery.trim())}`);
+  const goSearch = (customQuery) => {
+    const q = customQuery !== undefined ? customQuery : searchQuery;
+    router.push(`/listings?search=${encodeURIComponent((q || "").trim())}`);
   };
 
   const tabs = [
@@ -66,52 +68,16 @@ export default function HomePage() {
   ];
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] dark:bg-slate-950 text-navy dark:text-slate-100">
+<div className="min-h-screen bg-[#F8FAFC] dark:bg-slate-950 text-navy dark:text-slate-100">
       {/* Hero Section */}
-      <section className="relative py-24 px-4 sm:px-6 lg:px-8 text-center overflow-hidden border-b border-navy/10 dark:border-slate-800 shadow-sm bg-cover bg-center bg-no-style" style={{ backgroundImage: "linear-gradient(rgba(15, 23, 42, 0.75), rgba(15, 23, 42, 0.85)), url('/images/sumqayit-hero.jpg')" }}>
-        <div className="max-w-4xl mx-auto space-y-6 relative z-10 text-white">
-          {/* Sloqan */}
-          <span className="inline-block px-4 py-1.5 rounded-full bg-gold-50 dark:bg-slate-800 text-copper text-xs font-semibold tracking-wide uppercase border border-gold/30 shadow-sm">
-            {dict.brand || "MÜLKERA"} — {dict.slogan || "Sizin eranız, sizin mülkünüz."}
-          </span>
-
-          <h1 className="text-4xl sm:text-6xl font-extrabold font-heading tracking-tight text-white drop-shadow-md">
-            {dict.home?.heroTitle || "Arzuladığınız Mülkü MÜLKERA ilə Tapın"}
-          </h1>
-
-          <p className="text-base sm:text-lg text-slate-200 max-w-2xl mx-auto font-medium drop-shadow-sm">
-            {dict.home?.heroSubtitle ||
-              "Bakıda və bölgələrdə elit mənzillər, villalar və kommersiya obyektləri."}
-          </p>
-
-          {/* Axtarış qutusu */}
-          <div className="p-3 max-w-2xl mx-auto flex flex-col sm:flex-row gap-3 bg-white dark:bg-slate-800 rounded-2xl shadow-card border border-navy/10 dark:border-slate-700">
-            <div className="flex-1 flex items-center gap-2 px-4 py-2.5 bg-slate-50 dark:bg-slate-900 rounded-xl border border-navy/10 dark:border-slate-700 text-navy dark:text-slate-100">
-              <FiMapPin className="text-copper flex-shrink-0 text-lg" />
-              <input
-                type="text"
-                placeholder={dict.home?.searchPlaceholder || "Şəhər və ya ünvan daxil edin..."}
-                className="w-full bg-transparent text-sm outline-none text-navy dark:text-slate-100 placeholder:text-navy/40 dark:placeholder:text-slate-500 font-medium"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") goSearch();
-                }}
-              />
-            </div>
-            <button
-              type="button"
-              onClick={goSearch}
-              className="inline-flex items-center justify-center gap-2 rounded-xl bg-navy px-8 py-3.5 text-sm font-semibold text-white transition-all hover:bg-copper shadow-sm"
-            >
-              <FiSearch /> {dict.home?.searchButton || "Axtar"}
-            </button>
-          </div>
-        </div>
-      </section>
+      <HeroSection
+        searchQuery={searchQuery}
+        setSearchQuery={setSearchQuery}
+        onSearch={goSearch}
+      />
 
       {/* Kateqoriya tabları */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-12">
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 pb-8">
         <div className="flex flex-wrap justify-center gap-3">
           {tabs.map((cat) => (
             <button
@@ -119,8 +85,8 @@ export default function HomePage() {
               onClick={() => setSelectedCategory(cat.id)}
               className={`px-6 py-2.5 rounded-full text-sm font-semibold transition-all ${
                 selectedCategory === cat.id
-                  ? "bg-navy text-white shadow-card dark:bg-copper"
-                  : "bg-white dark:bg-slate-900 text-navy dark:text-slate-200 border border-navy/15 dark:border-slate-700 hover:border-gold hover:text-copper"
+                  ? "bg-[#101828] text-white shadow-md"
+                  : "bg-white text-slate-700 border border-slate-200 hover:border-slate-300 hover:text-navy shadow-sm"
               }`}
             >
               {cat.label}
@@ -130,10 +96,10 @@ export default function HomePage() {
       </section>
 
       {/* Seçilmiş elanlar */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="flex justify-between items-center mb-8">
-          <h2 className="text-2xl sm:text-3xl font-bold font-heading text-navy dark:text-white">
-            {dict.home?.featured || "Seçilmiş Elanlar"}
+          <h2 className="text-2xl sm:text-3xl font-extrabold font-heading text-[#111827]">
+            {dict.home?.featured || "Seçilmiş elanlar"}
           </h2>
           <Link href="/listings" className="text-copper font-semibold text-sm hover:underline">
             {dict.home?.viewAll || "Hamısına bax"} &rarr;

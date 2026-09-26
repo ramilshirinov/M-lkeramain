@@ -5,17 +5,19 @@ import { useApp } from "@/context/AppContext";
 import Link from "next/link";
 import { 
   FiShield, FiUsers, FiHome, FiCheckCircle, FiXCircle, 
-  FiAward, FiFlag, FiStar, FiTrash2, FiExternalLink, FiRefreshCw 
+  FiAward, FiFlag, FiStar, FiTrash2, FiExternalLink, FiRefreshCw, FiEyeOff, FiEye
 } from "react-icons/fi";
 import ApprovedRealtorsTab from "@/components/admin/ApprovedRealtorsTab";
 
 export default function AdminPage() {
   const { user, profile, supabase, loadingAuth } = useApp();
   const [activeTab, setActiveTab] = useState("pending"); // "pending", "approved", "listings", "reports"
-  const [stats, setStats] = useState({ users: 0, listings: 0, pendingCount: 0, reportsCount: 0 });
+  const [stats, setStats] = useState({ users: 0, listings: 0, pendingCount: 0, reportsCount: 0, reviewReportsCount: 0 });
   const [pendingRealtors, setPendingRealtors] = useState([]);
   const [allListings, setAllListings] = useState([]);
   const [reports, setReports] = useState([]);
+  const [reviewReports, setReviewReports] = useState([]);
+  const [reportsFilter, setReportsFilter] = useState("reviews"); // "reviews" | "listings"
   const [loading, setLoading] = useState(true);
 
   // Admin yoxlaması: ya metadata, ya profile, ya email
@@ -34,11 +36,13 @@ export default function AdminPage() {
         setPendingRealtors(json.pendingRealtors || []);
         setAllListings(json.listings || []);
         setReports(json.reports || []);
+        setReviewReports(json.reviewReports || []);
         setStats({
           users: json.stats?.users || 12,
           listings: json.stats?.listings || (json.listings || []).length,
           pendingCount: (json.pendingRealtors || []).length,
           reportsCount: (json.reports || []).length,
+          reviewReportsCount: (json.reviewReports || []).length,
         });
       }
     } catch (err) {
@@ -129,6 +133,68 @@ export default function AdminPage() {
     }
   };
 
+  // Rəy Şikayətləri Moderasiyası: Rəyi gizlət
+  const handleHideReview = async (reviewId, reportId) => {
+    try {
+      const res = await fetch("/api/admin", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "hide_review", review_id: reviewId, report_id: reportId }),
+      });
+      const json = await res.json();
+      if (!json.success) throw new Error(json.message || "Xəta");
+
+      setReviewReports((prev) =>
+        prev.map((r) =>
+          r.id === reportId ? { ...r, status: "resolved", realtor_reviews: { ...r.realtor_reviews, is_hidden: true } } : r
+        )
+      );
+      alert("Rəy uğurla gizlədildi və şikayət həll olundu.");
+    } catch (err) {
+      alert("Xəta: " + err.message);
+    }
+  };
+
+  // Rəy Şikayətləri Moderasiyası: Rəyi bazadan tam sil
+  const handleDeleteReview = async (reviewId, reportId) => {
+    if (!confirm("Bu uyğunsuz rəyi bazadan tamamilə silmək istədiyinizə əminsiniz?")) return;
+    try {
+      const res = await fetch("/api/admin", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "delete_review", review_id: reviewId, report_id: reportId }),
+      });
+      const json = await res.json();
+      if (!json.success) throw new Error(json.message || "Xəta");
+
+      setReviewReports((prev) => prev.filter((r) => r.id !== reportId));
+      setStats((s) => ({ ...s, reviewReportsCount: Math.max(0, s.reviewReportsCount - 1) }));
+      alert("Rəy bazadan tamamilə silindi.");
+    } catch (err) {
+      alert("Xəta: " + err.message);
+    }
+  };
+
+  // Rəy Şikayətini rədd et (əsassız hesab et)
+  const handleDismissReviewReport = async (reportId, reviewId) => {
+    try {
+      const res = await fetch("/api/admin", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "dismiss_review_report", report_id: reportId, review_id: reviewId }),
+      });
+      const json = await res.json();
+      if (!json.success) throw new Error(json.message || "Xəta");
+
+      setReviewReports((prev) =>
+        prev.map((r) => (r.id === reportId ? { ...r, status: "dismissed" } : r))
+      );
+      alert("Şikayət əsassız hesab edildi və rədd olundu.");
+    } catch (err) {
+      alert("Xəta: " + err.message);
+    }
+  };
+
   if (loadingAuth || loading) {
     return (
       <div className="py-32 text-center text-navy dark:text-slate-200 font-medium">
@@ -148,7 +214,7 @@ export default function AdminPage() {
               <FiShield className="text-copper" /> MÜLKERA Rəhbərlik Paneli
             </h1>
             <p className="text-xs sm:text-sm text-navy/60 dark:text-slate-400 mt-1">
-              Rieltorların təsdiqi, elanların moderasiyası və platforma nəzarəti
+              Rieltorların təsdiqi, rəy şikayətlərinin moderasiyası və platforma nəzarəti
             </p>
           </div>
 
@@ -186,8 +252,8 @@ export default function AdminPage() {
               <FiAward />
             </div>
             <div>
-              <p className="text-xs text-navy/60 dark:text-slate-400 font-medium">Gözləyən Rieltorlar</p>
-              <h3 className="text-2xl font-extrabold text-amber-600 dark:text-amber-400 mt-0.5">{stats.pendingCount}</h3>
+              <p className="text-xs text-navy/60 dark:text-slate-400 font-medium">Təsdiq Gözləyən Rieltorlar</p>
+              <h3 className="text-2xl font-extrabold text-navy dark:text-white mt-0.5">{stats.pendingCount}</h3>
             </div>
           </div>
 
@@ -196,80 +262,75 @@ export default function AdminPage() {
               <FiFlag />
             </div>
             <div>
-              <p className="text-xs text-navy/60 dark:text-slate-400 font-medium">Daxil olan Şikayətlər</p>
-              <h3 className="text-2xl font-extrabold text-red-600 dark:text-red-400 mt-0.5">{stats.reportsCount}</h3>
+              <p className="text-xs text-navy/60 dark:text-slate-400 font-medium">Rəy & Elan Şikayətləri</p>
+              <h3 className="text-2xl font-extrabold text-navy dark:text-white mt-0.5">
+                {stats.reportsCount + stats.reviewReportsCount}
+              </h3>
             </div>
           </div>
         </div>
 
-        {/* Tablar */}
-        <div className="flex gap-2 border-b border-navy/10 dark:border-slate-800 pb-3 overflow-x-auto">
+        {/* Tab Menyu */}
+        <div className="flex border-b border-navy/10 dark:border-slate-800 gap-4 overflow-x-auto pb-px">
           <button
-            type="button"
             onClick={() => setActiveTab("pending")}
-            className={`px-4 py-2.5 rounded-xl text-xs font-bold transition flex items-center gap-2 cursor-pointer ${
+            className={`pb-3 text-xs sm:text-sm font-bold border-b-2 transition whitespace-nowrap cursor-pointer ${
               activeTab === "pending"
-                ? "bg-navy text-white shadow-sm"
-                : "text-navy/70 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
+                ? "border-copper text-copper"
+                : "border-transparent text-navy/60 dark:text-slate-400 hover:text-navy dark:hover:text-white"
             }`}
           >
-            <FiAward /> Təsdiq Gözləyən Rieltorlar ({pendingRealtors.length})
+            Təsdiq Gözləyən Rieltorlar ({pendingRealtors.length})
           </button>
-
           <button
-            type="button"
             onClick={() => setActiveTab("approved")}
-            className={`px-4 py-2.5 rounded-xl text-xs font-bold transition flex items-center gap-2 cursor-pointer ${
+            className={`pb-3 text-xs sm:text-sm font-bold border-b-2 transition whitespace-nowrap cursor-pointer ${
               activeTab === "approved"
-                ? "bg-navy text-white shadow-sm"
-                : "text-navy/70 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
+                ? "border-copper text-copper"
+                : "border-transparent text-navy/60 dark:text-slate-400 hover:text-navy dark:hover:text-white"
             }`}
           >
-            <FiCheckCircle /> Təsdiqlənmiş Rieltorlar
+            Təsdiqlənmiş Rieltorlar
           </button>
-
           <button
-            type="button"
             onClick={() => setActiveTab("listings")}
-            className={`px-4 py-2.5 rounded-xl text-xs font-bold transition flex items-center gap-2 cursor-pointer ${
+            className={`pb-3 text-xs sm:text-sm font-bold border-b-2 transition whitespace-nowrap cursor-pointer ${
               activeTab === "listings"
-                ? "bg-navy text-white shadow-sm"
-                : "text-navy/70 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
+                ? "border-copper text-copper"
+                : "border-transparent text-navy/60 dark:text-slate-400 hover:text-navy dark:hover:text-white"
             }`}
           >
-            <FiHome /> Elanların Moderasiyası ({allListings.length})
+            Elanlar ({allListings.length})
           </button>
-
           <button
-            type="button"
             onClick={() => setActiveTab("reports")}
-            className={`px-4 py-2.5 rounded-xl text-xs font-bold transition flex items-center gap-2 cursor-pointer ${
+            className={`pb-3 text-xs sm:text-sm font-bold border-b-2 transition whitespace-nowrap cursor-pointer ${
               activeTab === "reports"
-                ? "bg-navy text-white shadow-sm"
-                : "text-navy/70 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
+                ? "border-copper text-copper"
+                : "border-transparent text-navy/60 dark:text-slate-400 hover:text-navy dark:hover:text-white"
             }`}
           >
-            <FiFlag /> Şikayətlər ({reports.length})
+            Şikayətlər ({reports.length + reviewReports.length})
           </button>
         </div>
 
-        {/* Tab Məzmunu */}
+        {/* Tab Məzmunları */}
         {activeTab === "pending" && (
           <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-card border border-navy/10 dark:border-slate-800 overflow-hidden">
-            <div className="p-6 border-b border-navy/10 dark:border-slate-800 flex justify-between items-center">
+            <div className="p-6 border-b border-navy/10 dark:border-slate-800 flex items-center justify-between">
               <div>
                 <h3 className="font-bold text-base text-navy dark:text-white">
-                  Rieltor Təsdiq Müraciətləri
+                  Rieltor Müraciətləri
                 </h3>
                 <p className="text-xs text-navy/60 dark:text-slate-400 mt-0.5">
-                  Vebsayt rəhbəri tərəfindən təsdiq edildikdən sonra elan yerləşdirə bilərlər.
+                  Platformada rieltor kimi fəaliyyət göstərmək üçün lisenziya və sənəd təsdiqi
                 </p>
               </div>
             </div>
 
             {pendingRealtors.length === 0 ? (
               <div className="p-12 text-center text-navy/50 dark:text-slate-400 text-sm font-medium">
-                Təsdiq gözləyən rieltor müraciəti yoxdur.
+                Hazırda təsdiq gözləyən yeni rieltor müraciəti yoxdur.
               </div>
             ) : (
               <div className="divide-y divide-navy/10 dark:divide-slate-800">
@@ -280,38 +341,35 @@ export default function AdminPage() {
                   >
                     <div className="space-y-1">
                       <div className="flex items-center gap-2">
-                        <h4 className="font-bold text-navy dark:text-white text-base">
-                          {realtor.full_name || "Adsız Rieltor"}
+                        <h4 className="font-bold text-sm text-navy dark:text-white">
+                          {realtor.full_name}
                         </h4>
-                        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-400 border border-amber-300 dark:border-amber-800">
-                          Təsdiq Gözləyir
+                        <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-300">
+                          Gözləmədə
                         </span>
                       </div>
                       <p className="text-xs text-navy/60 dark:text-slate-400">
-                        {realtor.email} · {realtor.phone || "Telefon yoxdur"}
+                        {realtor.agency_name} · {realtor.phone} · {realtor.email}
                       </p>
-                      <div className="flex items-center gap-3 text-xs pt-1">
-                        <span className="text-copper font-semibold">
-                          Agentlik: {realtor.agency_name || "Fərdi"}
-                        </span>
-                        <span className="text-navy/50 dark:text-slate-500">
-                          Faiz: {realtor.commission_rate || "1-2%"}
-                        </span>
-                      </div>
+                      <p className="text-[11px] text-navy/40 dark:text-slate-500">
+                        Hüquqi status: {realtor.legal_status || "Qeyd olunmayıb"} | Komissiya: {realtor.commission_rate || "1.5%"}
+                      </p>
                     </div>
 
-                    <div className="flex items-center gap-2.5">
+                    <div className="flex items-center gap-2">
                       <button
+                        type="button"
                         onClick={() => handleApprove(realtor.id)}
-                        className="flex items-center gap-1.5 px-4 py-2.5 bg-emerald-600 text-white rounded-xl font-bold text-xs hover:bg-emerald-700 transition shadow-sm cursor-pointer"
+                        className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition flex items-center gap-1.5 shadow-sm cursor-pointer"
                       >
-                        <FiCheckCircle size={16} /> Təsdiq Et
+                        <FiCheckCircle /> Təsdiq Et
                       </button>
                       <button
+                        type="button"
                         onClick={() => handleReject(realtor.id)}
-                        className="flex items-center gap-1.5 px-4 py-2.5 bg-red-100 dark:bg-red-950 text-red-600 dark:text-red-300 rounded-xl font-bold text-xs hover:bg-red-600 hover:text-white transition shadow-sm cursor-pointer"
+                        className="px-4 py-2 rounded-xl bg-red-100 dark:bg-red-950 text-red-600 dark:text-red-400 hover:bg-red-200 text-xs font-bold transition flex items-center gap-1.5 cursor-pointer"
                       >
-                        <FiXCircle size={16} /> Rədd Et
+                        <FiXCircle /> Rədd Et
                       </button>
                     </div>
                   </div>
@@ -322,28 +380,23 @@ export default function AdminPage() {
         )}
 
         {activeTab === "approved" && (
-          <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-card border border-navy/10 dark:border-slate-800 p-6">
-            <ApprovedRealtorsTab />
-          </div>
+          <ApprovedRealtorsTab />
         )}
 
         {activeTab === "listings" && (
           <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-card border border-navy/10 dark:border-slate-800 overflow-hidden">
             <div className="p-6 border-b border-navy/10 dark:border-slate-800">
               <h3 className="font-bold text-base text-navy dark:text-white">
-                Bütün Elanların İdarə Edilməsi
+                Bütün Əmlak Elanları ({allListings.length})
               </h3>
-              <p className="text-xs text-navy/60 dark:text-slate-400 mt-0.5">
-                VIP status verilməsi, yoxlanılması və ya silinməsi
-              </p>
             </div>
 
             {allListings.length === 0 ? (
               <div className="p-12 text-center text-navy/50 dark:text-slate-400 text-sm font-medium">
-                Elan tapılmadı.
+                Bazada hələ elan yoxdur.
               </div>
             ) : (
-              <div className="divide-y divide-navy/10 dark:divide-slate-800">
+              <div className="divide-y divide-navy/10 dark:divide-slate-800 max-h-[600px] overflow-y-auto">
                 {allListings.map((item) => (
                   <div
                     key={item.id}
@@ -365,9 +418,6 @@ export default function AdminPage() {
                       </div>
                       <p className="text-xs text-navy/60 dark:text-slate-400">
                         {Number(item.price || 0).toLocaleString()} {item.currency || "AZN"} · {item.address}
-                      </p>
-                      <p className="text-[11px] text-navy/40 dark:text-slate-500">
-                        Müəllif: {item.profiles?.full_name || "İstifadəçi"}
                       </p>
                     </div>
 
@@ -410,49 +460,174 @@ export default function AdminPage() {
           </div>
         )}
 
+        {/* Şikayətlər Bölməsi: Həm Rəy Şikayətləri, Həm Elan Şikayətləri */}
         {activeTab === "reports" && (
-          <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-card border border-navy/10 dark:border-slate-800 overflow-hidden">
-            <div className="p-6 border-b border-navy/10 dark:border-slate-800">
-              <h3 className="font-bold text-base text-navy dark:text-white">
-                İstifadəçi Şikayətləri
-              </h3>
-              <p className="text-xs text-navy/60 dark:text-slate-400 mt-0.5">
-                Elanlar haqqında göndərilmiş şübhəli və ya yalan məlumat bildirişləri
-              </p>
+          <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-card border border-navy/10 dark:border-slate-800 overflow-hidden space-y-4">
+            <div className="p-6 border-b border-navy/10 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div>
+                <h3 className="font-bold text-base text-navy dark:text-white">
+                  Şikayətlər və Moderasiya
+                </h3>
+                <p className="text-xs text-navy/60 dark:text-slate-400 mt-0.5">
+                  Rieltor rəyləri və elanlar haqqında göndərilmiş istifadəçi şikayətləri
+                </p>
+              </div>
+
+              <div className="flex gap-1.5 bg-slate-100 dark:bg-slate-800 p-1 rounded-xl">
+                <button
+                  type="button"
+                  onClick={() => setReportsFilter("reviews")}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
+                    reportsFilter === "reviews"
+                      ? "bg-white dark:bg-slate-900 text-copper shadow-xs"
+                      : "text-navy/70 dark:text-slate-400"
+                  }`}
+                >
+                  Rəy Şikayətləri ({reviewReports.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setReportsFilter("listings")}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
+                    reportsFilter === "listings"
+                      ? "bg-white dark:bg-slate-900 text-copper shadow-xs"
+                      : "text-navy/70 dark:text-slate-400"
+                  }`}
+                >
+                  Elan Şikayətləri ({reports.length})
+                </button>
+              </div>
             </div>
 
-            {reports.length === 0 ? (
-              <div className="p-12 text-center text-navy/50 dark:text-slate-400 text-sm font-medium">
-                Hazırda daxil olmuş şikayət yoxdur.
-              </div>
-            ) : (
-              <div className="divide-y divide-navy/10 dark:divide-slate-800">
-                {reports.map((rep) => (
-                  <div key={rep.id} className="p-5 space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-red-600 bg-red-50 dark:bg-red-950/60 px-2.5 py-1 rounded-lg">
-                        {rep.reason || "Şikayət"}
-                      </span>
-                      <span className="text-[11px] text-navy/40 dark:text-slate-500">
-                        {rep.created_at ? new Date(rep.created_at).toLocaleDateString("az-AZ") : "Bu gün"}
-                      </span>
-                    </div>
-                    <p className="text-xs text-navy/80 dark:text-slate-300">
-                      {rep.details || "Əlavə açıqlama qeyd olunmayıb."}
-                    </p>
-                    {rep.listing_id && (
-                      <div className="pt-1">
-                        <Link
-                          href={`/listings/${rep.listing_id}`}
-                          className="text-xs text-copper font-bold hover:underline inline-flex items-center gap-1"
-                        >
-                          Elana keçid: #{rep.listing_id} <FiExternalLink />
-                        </Link>
+            {/* Rəy Şikayətləri Tabı */}
+            {reportsFilter === "reviews" && (
+              reviewReports.length === 0 ? (
+                <div className="p-12 text-center text-navy/50 dark:text-slate-400 text-sm font-medium">
+                  Hazırda rəylər üzrə heç bir aktiv şikayət daxil olmayıb.
+                </div>
+              ) : (
+                <div className="divide-y divide-navy/10 dark:divide-slate-800">
+                  {reviewReports.map((rep) => {
+                    const review = rep.realtor_reviews;
+                    const isResolved = rep.status === "resolved" || rep.status === "dismissed";
+
+                    return (
+                      <div key={rep.id} className="p-6 space-y-3 hover:bg-slate-50/50 dark:hover:bg-slate-800/40 transition">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-bold text-red-600 bg-red-50 dark:bg-red-950/60 px-2.5 py-1 rounded-lg">
+                              ⚠️ {rep.reason}
+                            </span>
+                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                              rep.status === "resolved"
+                                ? "bg-emerald-100 text-emerald-700"
+                                : rep.status === "dismissed"
+                                ? "bg-slate-100 text-slate-600"
+                                : "bg-amber-100 text-amber-800"
+                            }`}>
+                              Status: {rep.status === "resolved" ? "Həll olundu" : rep.status === "dismissed" ? "Rədd edildi" : "Gözləmədə"}
+                            </span>
+                          </div>
+                          <span className="text-[11px] text-navy/40 dark:text-slate-500">
+                            {rep.created_at ? new Date(rep.created_at).toLocaleDateString("az-AZ") : "Bu gün"}
+                          </span>
+                        </div>
+
+                        {/* Şikayət olunan rəyin mətni */}
+                        {review ? (
+                          <div className="p-3.5 rounded-2xl bg-slate-100 dark:bg-slate-800 border border-navy/10 dark:border-slate-700 space-y-1">
+                            <div className="flex items-center justify-between text-xs">
+                              <span className="font-bold text-navy dark:text-white">
+                                Müəllif: {review.reviewer_name || "Müştəri"} · {review.rating} ⭐
+                              </span>
+                              {review.is_hidden && (
+                                <span className="text-[10px] font-bold text-amber-600 bg-amber-50 px-2 py-0.5 rounded">
+                                  Gizlədilib
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-xs text-navy/80 dark:text-slate-300 italic">
+                              &ldquo;{review.comment}&rdquo;
+                            </p>
+                          </div>
+                        ) : (
+                          <p className="text-xs text-navy/50 italic">
+                            (Rəy artıq bazadan silinib və ya tapılmadı)
+                          </p>
+                        )}
+
+                        <p className="text-xs text-navy/70 dark:text-slate-300">
+                          <strong>Şikayətçinin qeydi:</strong> {rep.details || "Açıqlama yoxdur."}
+                        </p>
+
+                        {/* Admin İdarəetmə Düymələri */}
+                        {!isResolved && (
+                          <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-navy/5 dark:border-slate-800">
+                            <button
+                              type="button"
+                              onClick={() => handleHideReview(rep.review_id, rep.id)}
+                              className="px-3 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold transition flex items-center gap-1 cursor-pointer"
+                            >
+                              <FiEyeOff className="text-xs" /> Rəyi Gizlət
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteReview(rep.review_id, rep.id)}
+                              className="px-3 py-1.5 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-bold transition flex items-center gap-1 cursor-pointer"
+                            >
+                              <FiTrash2 className="text-xs" /> Rəyi Tam Sil
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDismissReviewReport(rep.id, rep.review_id)}
+                              className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 text-navy dark:text-slate-200 text-xs font-semibold transition cursor-pointer"
+                            >
+                              Şikayəti Rədd Et
+                            </button>
+                          </div>
+                        )}
                       </div>
-                    )}
-                  </div>
-                ))}
-              </div>
+                    );
+                  })}
+                </div>
+              )
+            )}
+
+            {/* Elan Şikayətləri Tabı */}
+            {reportsFilter === "listings" && (
+              reports.length === 0 ? (
+                <div className="p-12 text-center text-navy/50 dark:text-slate-400 text-sm font-medium">
+                  Hazırda elanlar üzrə heç bir aktiv şikayət yoxdur.
+                </div>
+              ) : (
+                <div className="divide-y divide-navy/10 dark:divide-slate-800">
+                  {reports.map((rep) => (
+                    <div key={rep.id} className="p-5 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-red-600 bg-red-50 dark:bg-red-950/60 px-2.5 py-1 rounded-lg">
+                          {rep.reason || "Şikayət"}
+                        </span>
+                        <span className="text-[11px] text-navy/40 dark:text-slate-500">
+                          {rep.created_at ? new Date(rep.created_at).toLocaleDateString("az-AZ") : "Bu gün"}
+                        </span>
+                      </div>
+                      <p className="text-xs text-navy/80 dark:text-slate-300">
+                        {rep.details || "Əlavə açıqlama qeyd olunmayıb."}
+                      </p>
+                      {rep.listing_id && (
+                        <div className="pt-1">
+                          <Link
+                            href={`/listings/${rep.listing_id}`}
+                            className="text-xs text-copper font-bold hover:underline inline-flex items-center gap-1"
+                          >
+                            Elana keçid: #{rep.listing_id} <FiExternalLink />
+                          </Link>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )
             )}
           </div>
         )}

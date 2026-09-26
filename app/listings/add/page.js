@@ -11,8 +11,10 @@ import {
 } from "@/lib/listings";
 import { AZERBAIJAN_REGIONS } from "@/constants/locations";
 import MediaUploader from "@/components/MediaUploader";
-import LocationPicker from "@/components/LocationPicker";
 import { FiPlusCircle, FiCheckCircle, FiHome, FiDollarSign, FiMapPin, FiLayers } from "react-icons/fi";
+import dynamic from "next/dynamic";
+
+const LocationPicker = dynamic(() => import("@/components/LocationPicker"), { ssr: false });
 
 const INITIAL_FORM = {
   title_az: "",
@@ -405,6 +407,25 @@ export default function AddListingPage() {
                 className={`w-full rounded-xl bg-slate-50 dark:bg-slate-800 border px-4 py-3 text-sm outline-none text-navy dark:text-white placeholder:text-navy/40 dark:placeholder:text-slate-500 focus:border-copper transition ${
                   errors.phone_number ? "border-red-400 bg-red-50/30" : "border-navy/15 dark:border-slate-700"
                 }`}
+              />
+            </div>
+
+            <div className="pt-2">
+              <label className="block text-sm font-semibold text-navy dark:text-slate-200 mb-2">
+                İnteraktiv Xəritədə Məkanı Qeyd Edin (Koordinatlar)
+              </label>
+              <LocationPicker
+                latitude={form.latitude ? Number(form.latitude) : 40.4093}
+                longitude={form.longitude ? Number(form.longitude) : 49.8671}
+                onChange={(lat, lng) => {
+                  if (lat && lng && typeof lat === "number") {
+                    update("latitude", lat);
+                    update("longitude", lng);
+                  } else if (typeof lat === "object" && lat !== null) {
+                    update("latitude", lat.lat);
+                    update("longitude", lat.lng);
+                  }
+                }}
               />
             </div>
           </div>
