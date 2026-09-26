@@ -6,9 +6,15 @@ import Link from "next/link";
 import { useApp } from "@/context/AppContext";
 import ListingCard from "@/components/ListingCard";
 import HeroSection from "@/components/HeroSection";
-import { FiSearch, FiMapPin } from "react-icons/fi";
+import {
+  FiCpu,
+  FiZap,
+  FiArrowRight,
+  FiCheckCircle,
+  FiRadio,
+} from "react-icons/fi";
 
-// listing_photos, categories və districts sorğuya qoşulur (şəkil problemi buradan həll olunur)
+// listing_photos, categories və districts sorğuya qoşulur
 const SELECT_ALL = "*, listing_photos(url, media_type), categories(*), districts(*)";
 // Kateqoriyaya görə filtr üçün !inner join istifadə olunur
 const SELECT_BY_CATEGORY =
@@ -59,34 +65,35 @@ export default function HomePage() {
     router.push(`/listings?search=${encodeURIComponent((q || "").trim())}`);
   };
 
+  // Kateqoriyalar — İstifadəçinin göndərdiyi image.png dizaynı ilə 1:1 eyni
   const tabs = [
-    { id: "all", label: dict.home?.categories || "Bütün Elanlar" },
-    { id: "new-building", label: dict.categories?.["new-building"] || "Yeni tikili" },
-    { id: "old-building", label: dict.categories?.["old-building"] || "Köhnə tikili" },
-    { id: "house-cottage", label: dict.categories?.["house-cottage"] || "Həyət evi / Bağ evi" },
-    { id: "office", label: dict.categories?.office || "Ofis" },
+    { id: "all", label: "Kateqoriyalar" },
+    { id: "new-building", label: "Yeni tikili" },
+    { id: "old-building", label: "Köhnə tikili" },
+    { id: "house-cottage", label: "Həyət evi/Bağ evi" },
+    { id: "office", label: "Ofis" },
   ];
 
   return (
-<div className="min-h-screen bg-[#F8FAFC] dark:bg-slate-950 text-navy dark:text-slate-100">
-      {/* Hero Section */}
+    <div className="min-h-screen bg-white dark:bg-slate-950 text-navy dark:text-slate-100">
+      {/* Hero Section (İstifadəçinin təqdim etdiyi Sumqayıt şəkli, tünd örtük və təmiz başlıq) */}
       <HeroSection
         searchQuery={searchQuery}
         setSearchQuery={setSearchQuery}
         onSearch={goSearch}
       />
 
-      {/* Kateqoriya tabları */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 pb-8">
+      {/* Kateqoriya tabları (image.png-dəki kimi zərif kapsul düymələr) */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 pb-4">
         <div className="flex flex-wrap justify-center gap-3">
           {tabs.map((cat) => (
             <button
               key={cat.id}
               onClick={() => setSelectedCategory(cat.id)}
-              className={`px-6 py-2.5 rounded-full text-sm font-semibold transition-all ${
+              className={`px-6 py-2.5 rounded-full text-sm font-semibold transition-all cursor-pointer ${
                 selectedCategory === cat.id
-                  ? "bg-[#101828] text-white shadow-md"
-                  : "bg-white text-slate-700 border border-slate-200 hover:border-slate-300 hover:text-navy shadow-sm"
+                  ? "bg-[#1E293B] text-white shadow-md"
+                  : "bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-800 hover:border-slate-300 hover:text-navy dark:hover:text-white shadow-xs"
               }`}
             >
               {cat.label}
@@ -98,7 +105,7 @@ export default function HomePage() {
       {/* Seçilmiş elanlar */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="flex justify-between items-center mb-8">
-          <h2 className="text-2xl sm:text-3xl font-extrabold font-heading text-[#111827]">
+          <h2 className="text-2xl sm:text-3xl font-extrabold font-heading text-[#111827] dark:text-white">
             {dict.home?.featured || "Seçilmiş elanlar"}
           </h2>
           <Link href="/listings" className="text-copper font-semibold text-sm hover:underline">
@@ -144,6 +151,125 @@ export default function HomePage() {
         )}
       </section>
 
+      {/* ========================================================================= */}
+      {/* İNNOVASİYALAR: Canlı Peyk & AI Rieltor (Kvadrat Çərçivə - Tezliklə)         */}
+      {/* ========================================================================= */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+        <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+          <div>
+            <span className="text-xs font-bold uppercase tracking-wider text-copper">
+              Gözlənilən İnnovasiyalar
+            </span>
+            <h2 className="text-2xl sm:text-3xl font-black font-heading text-navy dark:text-white">
+              Tezliklə MÜLKERA Platformasında
+            </h2>
+          </div>
+          <span className="text-xs text-slate-500 font-medium">
+            Yeni nəsil əmlak texnologiyaları hazırlanır
+          </span>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* 1. Canlı Yayım & Rieltor PK (Kvadrat Çərçivə - Gözalımlı Mavi) */}
+          <div className="relative group rounded-3xl bg-gradient-to-br from-slate-900 via-slate-900 to-blue-950 text-white p-7 sm:p-8 border border-blue-500/40 shadow-xl flex flex-col justify-between overflow-hidden">
+            <div className="absolute -right-16 -top-16 w-52 h-52 bg-blue-500/20 rounded-full blur-3xl pointer-events-none" />
+
+            <div className="space-y-4 relative z-10">
+              <div className="flex items-center justify-between">
+                <div className="w-12 h-12 rounded-2xl bg-blue-500/20 text-blue-400 flex items-center justify-center text-xl font-black border border-blue-400/30 shadow-inner">
+                  📹
+                </div>
+                <span className="inline-flex items-center px-3.5 py-1 rounded-full bg-blue-500/25 border border-blue-400/40 text-blue-200 text-xs font-bold uppercase tracking-wider shadow-xs">
+                  Tezliklə • Coming Soon
+                </span>
+              </div>
+
+              <div>
+                <h3 className="text-xl sm:text-2xl font-black font-heading text-white">
+                  Canlı Əmlak Yayımı & PK Arenası
+                </h3>
+                <p className="text-xs sm:text-sm text-slate-300 mt-2 leading-relaxed font-normal">
+                  TikTok formatında canlı video yayımlar — peşəkar rieltorlar mülkləri canlı yayımda nümayiş etdirir, alıcılar sual verir, mənzili gəzir və canlı duel (PK) ilə ən yaxşı təkliflər seçilir.
+                </p>
+              </div>
+
+              <div className="pt-2 flex flex-wrap gap-2 text-[11px] text-blue-200">
+                <span className="px-2.5 py-1 rounded-lg bg-blue-900/60 border border-blue-800">
+                  📹 Canlı Video Gəzinti
+                </span>
+                <span className="px-2.5 py-1 rounded-lg bg-blue-900/60 border border-blue-800">
+                  ⚔️ Rieltor PK Döyüşü
+                </span>
+                <span className="px-2.5 py-1 rounded-lg bg-blue-900/60 border border-blue-800">
+                  💬 Canlı Çat & Təklif
+                </span>
+              </div>
+            </div>
+
+            <div className="pt-6 relative z-10">
+              <Link
+                href="/live"
+                className="w-full py-3 px-5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs transition flex items-center justify-center gap-2 shadow-lg cursor-pointer"
+              >
+                <span>Canlı Yayım Barədə Məlumat Al & Qoşul</span>
+                <FiArrowRight />
+              </Link>
+            </div>
+          </div>
+
+          {/* 2. AI Rieltor (Kvadrat Çərçivə) */}
+          <div className="relative group rounded-3xl bg-gradient-to-br from-slate-900 to-amber-950 text-white p-7 sm:p-8 border border-orange-500/30 shadow-xl flex flex-col justify-between overflow-hidden">
+            <div className="absolute -right-16 -top-16 w-48 h-48 bg-orange-500/15 rounded-full blur-3xl pointer-events-none" />
+
+            <div className="space-y-4 relative z-10">
+              <div className="flex items-center justify-between">
+                <div className="w-12 h-12 rounded-2xl bg-orange-500/20 text-orange-400 flex items-center justify-center text-2xl border border-orange-400/30 shadow-inner">
+                  <FiCpu />
+                </div>
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-orange-500/20 border border-orange-400/40 text-orange-300 text-xs font-bold uppercase tracking-wider">
+                  <span className="relative flex h-2 w-2">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-orange-500"></span>
+                  </span>
+                  Tezliklə • Coming Soon
+                </span>
+              </div>
+
+              <div>
+                <h3 className="text-xl sm:text-2xl font-black font-heading text-white">
+                  AI Rieltor — Süni İntellektlə Axtarış
+                </h3>
+                <p className="text-xs sm:text-sm text-slate-300 mt-2 leading-relaxed font-normal">
+                  Süni intellekt köməkçisi ilə təbii söhbət dilində danışaraq istədiyiniz büdcədə, məkanda və parametrə uyğun mülkləri dərhal tapın və bazar dəyərini saniyələr içində təhlil edin.
+                </p>
+              </div>
+
+              <div className="pt-2 flex flex-wrap gap-2 text-[11px] text-amber-200">
+                <span className="px-2.5 py-1 rounded-lg bg-orange-950/70 border border-orange-900/60">
+                  💬 Səsli & Mətn Dialoq
+                </span>
+                <span className="px-2.5 py-1 rounded-lg bg-orange-950/70 border border-orange-900/60">
+                  📊 Bazar Qiymət Təhlili
+                </span>
+                <span className="px-2.5 py-1 rounded-lg bg-orange-950/70 border border-orange-900/60">
+                  🎯 Dəqiq Eşləşmə
+                </span>
+              </div>
+            </div>
+
+            <div className="pt-6 relative z-10">
+              <Link
+                href="/ai-realtor"
+                className="w-full py-3 px-5 rounded-xl bg-gradient-to-r from-orange-500 to-amber-600 hover:from-orange-600 hover:to-amber-700 text-white font-bold text-xs transition flex items-center justify-center gap-2 shadow-lg cursor-pointer"
+              >
+                <span>Tezliklə Məlumatı & Gözləmə Siyahısı</span>
+                <FiArrowRight />
+              </Link>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* Haqqımızda (About Us) Video Bölməsi */}
       <section className="bg-white dark:bg-slate-900 border-t border-navy/10 dark:border-slate-800 py-16 px-4 sm:px-6 lg:px-8">
         <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-10 items-center">
@@ -177,10 +303,11 @@ export default function HomePage() {
             <div className="aspect-video w-full relative flex items-center justify-center">
               <video
                 controls
-                poster="/images/logo-full.png"
+                playsInline
+                poster="/images/sumqayit-real-skyline.jpg"
                 className="w-full h-full object-cover"
               >
-                <source src="https://www.w3schools.com/html/mov_bbb.mp4" type="video/mp4" />
+                <source src="/videos/mulkera-promo.mp4" type="video/mp4" />
                 Brauzeriniz video pleyeri dəstəkləmir.
               </video>
             </div>

@@ -30,7 +30,20 @@ export default function Footer() {
                 <Link href="/map" className="hover:text-copper transition">Xəritə Üzrə Axtarış</Link>
               </li>
               <li>
-                <Link href="/live" className="hover:text-copper transition">Canlı PK Arenası</Link>
+                <Link href="/live" className="hover:text-copper transition flex items-center gap-1.5">
+                  <span>Canlı Yayım & PK</span>
+                  <span className="text-[9px] uppercase px-1.5 py-0.5 rounded-full bg-blue-950 text-blue-400 border border-blue-800 font-semibold">
+                    Tezliklə
+                  </span>
+                </Link>
+              </li>
+              <li>
+                <Link href="/ai-realtor" className="hover:text-copper transition flex items-center gap-1.5">
+                  <span>AI Rieltor</span>
+                  <span className="text-[9px] uppercase px-1.5 py-0.5 rounded-full bg-orange-950 text-orange-400 border border-orange-800 font-semibold">
+                    Tezliklə
+                  </span>
+                </Link>
               </li>
             </ul>
           </div>
@@ -57,13 +70,26 @@ export default function Footer() {
             <h4 className="text-xs font-bold uppercase tracking-wider text-white">Əlaqə & Dəstək</h4>
             <ul className="space-y-2 text-slate-400">
               <li className="flex items-center gap-2">
-                <FiMapPin className="text-copper" /> Ünvan: Sumqayıt şəhəri
+                <FiMapPin className="text-copper shrink-0" />
+                <span>Sumqayıt şəhəri</span>
               </li>
-              <li className="flex items-center gap-2">
-                <FiPhone className="text-copper" /> Əlaqə Nömrəsi: +994 50 666 75 08
+              <li>
+                <a
+                  href="tel:+994506667508"
+                  className="flex items-center gap-2 hover:text-copper transition"
+                >
+                  <FiPhone className="text-copper shrink-0" />
+                  <span>+994 50 666 75 08</span>
+                </a>
               </li>
-              <li className="flex items-center gap-2">
-                <FiMail className="text-copper" /> E-poçt: ramilshirinovwork@gmail.com
+              <li>
+                <a
+                  href="mailto:ramilshirinovwork@gmail.com"
+                  className="flex items-center gap-2 hover:text-copper transition break-all"
+                >
+                  <FiMail className="text-copper shrink-0" />
+                  <span>ramilshirinovwork@gmail.com</span>
+                </a>
               </li>
             </ul>
           </div>

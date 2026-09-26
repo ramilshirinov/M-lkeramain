@@ -15,20 +15,32 @@ import {
   FiFilter,
   FiTag,
   FiRotateCcw,
+  FiCheck,
 } from "react-icons/fi";
 import Link from "next/link";
+import { AZERBAIJAN_REGIONS } from "@/constants/locations";
 
-const FILTER_AREAS = [
+// Populyar sürətli ərazi düymələri
+const QUICK_AREAS = [
   "all",
+  "Sumqayıt",
   "Yasamal",
   "Nəsimi",
   "Nərimanov",
   "Xətai",
   "Səbail",
   "Binəqədi",
-  "Sabunçu",
-  "Suraxanı",
   "Abşeron",
+  "Gəncə",
+];
+
+const COMMISSION_RATES = [
+  { id: "all", label: "Bütün Komissiyalar" },
+  { id: "1%", label: "1% (Minimum)" },
+  { id: "1.5%", label: "1.5% (Standart)" },
+  { id: "2%", label: "2% (Orta)" },
+  { id: "3%+", label: "3%+ (VIP müşayiət)" },
+  { id: "agreement", label: "Razılaşma ilə" },
 ];
 
 const FILTER_SPECIALTIES = [
@@ -46,11 +58,12 @@ export default function RealtorsPage() {
   const [realtors, setRealtors] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
-  const [regionFilter, setRegionFilter] = useState("all");
-  const [commissionFilter, setCommissionFilter] = useState("all");
   const [sortBy, setSortBy] = useState("score"); // "score", "rating", "sales", "speed"
   const [areaFilter, setAreaFilter] = useState("all");
+  const [commissionFilter, setCommissionFilter] = useState("all");
   const [specialtyFilter, setSpecialtyFilter] = useState("all");
+  const [minRatingFilter, setMinRatingFilter] = useState("all");
+  const [verifiedOnly, setVerifiedOnly] = useState(false);
 
   const [recalculating, setRecalculating] = useState(false);
   const [recalcMsg, setRecalcMsg] = useState("");
@@ -114,30 +127,12 @@ export default function RealtorsPage() {
   const handleResetFilters = () => {
     setSearch("");
     setAreaFilter("all");
+    setCommissionFilter("all");
     setSpecialtyFilter("all");
+    setMinRatingFilter("all");
+    setVerifiedOnly(false);
     setSortBy("score");
   };
-
-  const AZ_CITIES = [
-    "Bütün Şəhər və Rayonlar",
-    "Bakı",
-    "Sumqayıt",
-    "Xırdalan",
-    "Gəncə",
-    "Naxçıvan",
-    "Mingəçevir",
-    "Lənkəran",
-    "Şəki",
-    "Yevlax",
-    "Quba",
-    "Qusar",
-    "Şamaxı",
-    "Qəbələ",
-    "Göyçay",
-    "Bərdə",
-    "Salyan",
-    "Şəmkir"
-  ];
 
   const filteredRealtors = useMemo(() => {
     let list = [...realtors];
@@ -148,14 +143,30 @@ export default function RealtorsPage() {
         (r) =>
           (r.full_name || "").toLowerCase().includes(q) ||
           (r.agency_name || "").toLowerCase().includes(q) ||
-          r.service_areas?.some((a) => a.toLowerCase().includes(q))
+          r.service_areas?.some((a) => a.toLowerCase().includes(q)) ||
+          r.specialties?.some((s) => s.toLowerCase().includes(q))
       );
     }
 
     if (areaFilter !== "all") {
+      const targetArea = areaFilter.toLowerCase();
       list = list.filter((r) =>
-        r.service_areas?.some((a) => a.toLowerCase().includes(areaFilter.toLowerCase()))
+        r.service_areas?.some(
+          (a) => a.toLowerCase().includes(targetArea) || targetArea.includes(a.toLowerCase())
+        )
       );
+    }
+
+    if (commissionFilter !== "all") {
+      list = list.filter((r) => {
+        const rate = (r.commission_rate || "").toString().toLowerCase();
+        if (commissionFilter === "1%") return rate.includes("1%") || rate === "1";
+        if (commissionFilter === "1.5%") return rate.includes("1.5");
+        if (commissionFilter === "2%") return rate.includes("2%") || rate === "2";
+        if (commissionFilter === "3%+") return parseFloat(rate) >= 3 || rate.includes("3") || rate.includes("4");
+        if (commissionFilter === "agreement") return rate.includes("razı") || rate.includes("agree");
+        return true;
+      });
     }
 
     if (specialtyFilter !== "all") {
@@ -164,21 +175,15 @@ export default function RealtorsPage() {
       );
     }
 
-    if (regionFilter !== "all") {
-      const reg = regionFilter.toLowerCase();
-      list = list.filter(
-        (r) =>
-          (r.agency_name || "").toLowerCase().includes(reg) ||
-          (r.bio || "").toLowerCase().includes(reg) ||
-          (r.full_name || "").toLowerCase().includes(reg)
-      );
+    if (minRatingFilter !== "all") {
+      const minR = parseFloat(minRatingFilter);
+      list = list.filter((r) => Number(r.rating || 0) >= minR);
     }
 
-    if (commissionFilter !== "all") {
-      list = list.filter((r) => {
-        const comm = (r.commission_rate || "").toString();
-        return comm.includes(commissionFilter);
-      });
+    if (verifiedOnly) {
+      list = list.filter(
+        (r) => (r.legal_status || "").toLowerCase().includes("vöen") || r.is_verified
+      );
     }
 
     if (sortBy === "sales") {
@@ -192,7 +197,7 @@ export default function RealtorsPage() {
     }
 
     return list.slice(0, 50);
-  }, [realtors, search, areaFilter, specialtyFilter, sortBy]);
+  }, [realtors, search, areaFilter, commissionFilter, specialtyFilter, minRatingFilter, verifiedOnly, sortBy]);
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] dark:bg-slate-950 text-navy dark:text-slate-100 py-10 px-4 sm:px-6 lg:px-8">
@@ -298,13 +303,86 @@ export default function RealtorsPage() {
             </div>
           </div>
 
-          {/* Fəaliyyət Ərazisi Filtrləri (Service Areas) */}
-          <div className="pt-3 border-t border-navy/10 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center gap-3">
-            <span className="text-xs font-bold text-navy/70 dark:text-slate-300 flex items-center gap-1 shrink-0">
-              <FiMapPin className="text-copper" /> Fəaliyyət Ərazisi:
-            </span>
+          {/* 1. Fəaliyyət Ərazisi (Bütün Şəhər və Rayonlar) */}
+          <div className="pt-3 border-t border-navy/10 dark:border-slate-800 space-y-2">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <span className="text-xs font-bold text-navy/70 dark:text-slate-300 flex items-center gap-1.5 shrink-0">
+                <FiMapPin className="text-copper" /> Fəaliyyət Ərazisi (Bütün Şəhər və Rayonlar):
+              </span>
+
+              {/* Bütün Şəhər və Rayonların Tam Seçimi */}
+              <div className="flex items-center gap-2">
+                <span className="text-[11px] text-navy/50 dark:text-slate-400 hidden sm:inline">Dəqiq Ərazi:</span>
+                <select
+                  value={areaFilter}
+                  onChange={(e) => setAreaFilter(e.target.value)}
+                  className="px-3 py-1.5 rounded-xl text-xs font-semibold bg-slate-50 dark:bg-slate-800 text-navy dark:text-slate-200 border border-navy/15 dark:border-slate-700 outline-none focus:border-copper cursor-pointer"
+                >
+                  <option value="all">🌐 Bütün Şəhər və Rayonlar (Azərbaycan)</option>
+                  
+                  {/* Sumqayıt */}
+                  <optgroup label="📍 Sumqayıt Şəhəri">
+                    <option value="Sumqayıt">Sumqayıt (Ümumi)</option>
+                    <option value="Sumqayıt Mərkəz">Sumqayıt Mərkəz</option>
+                    <option value="Dənizkənarı bulvar">Sumqayıt Dənizkənarı Bulvar</option>
+                    <option value="Corat">Corat qəsəbəsi</option>
+                    <option value="mikrorayon">Sumqayıt Mikrorayonlar</option>
+                  </optgroup>
+
+                  {/* Bakı Rayonları */}
+                  <optgroup label="📍 Bakı Şəhəri (12 Rayon)">
+                    <option value="Bakı">Bakı (Bütün Rayonlar)</option>
+                    <option value="Yasamal">Yasamal rayonu</option>
+                    <option value="Nəsimi">Nəsimi rayonu</option>
+                    <option value="Nərimanov">Nərimanov rayonu</option>
+                    <option value="Xətai">Xətai rayonu</option>
+                    <option value="Səbail">Səbail rayonu</option>
+                    <option value="Binəqədi">Binəqədi rayonu</option>
+                    <option value="Sabunçu">Sabunçu rayonu</option>
+                    <option value="Suraxanı">Suraxanı rayonu</option>
+                    <option value="Xəzər">Xəzər rayonu</option>
+                    <option value="Qaradağ">Qaradağ rayonu</option>
+                    <option value="Nizami">Nizami rayonu</option>
+                    <option value="Pirallahı">Pirallahı rayonu</option>
+                  </optgroup>
+
+                  {/* Abşeron */}
+                  <optgroup label="📍 Abşeron Rayonu">
+                    <option value="Abşeron">Abşeron (Ümumi)</option>
+                    <option value="Xırdalan">Xırdalan şəhəri</option>
+                    <option value="Masazır">Masazır qəsəbəsi</option>
+                    <option value="Saray">Saray qəsəbəsi</option>
+                    <option value="Mehdiabad">Mehdiabad qəsəbəsi</option>
+                    <option value="Novxanı">Novxanı bağları</option>
+                    <option value="Ceyranbatan">Ceyranbatan qəsəbəsi</option>
+                  </optgroup>
+
+                  {/* Digər Şəhər və Regionlar */}
+                  <optgroup label="📍 Regionlar və Digər Şəhərlər">
+                    <option value="Gəncə">Gəncə şəhəri</option>
+                    <option value="Mingəçevir">Mingəçevir şəhəri</option>
+                    <option value="Şirvan">Şirvan şəhəri</option>
+                    <option value="Quba">Quba rayonu</option>
+                    <option value="Qusar">Qusar (Şahdağ)</option>
+                    <option value="Xaçmaz">Xaçmaz / Nabran</option>
+                    <option value="Şəki">Şəki şəhəri</option>
+                    <option value="Qəbələ">Qəbələ (Tufandağ)</option>
+                    <option value="İsmayıllı">İsmayıllı rayonu</option>
+                    <option value="Şamaxı">Şamaxı rayonu</option>
+                    <option value="Lənkəran">Lənkəran şəhəri</option>
+                    <option value="Masallı">Masallı rayonu</option>
+                    <option value="Bərdə">Bərdə rayonu</option>
+                    <option value="Şəmkir">Şəmkir rayonu</option>
+                    <option value="Tovuz">Tovuz rayonu</option>
+                    <option value="Naxçıvan">Naxçıvan MR</option>
+                  </optgroup>
+                </select>
+              </div>
+            </div>
+
+            {/* Sürətli Populyar Ərazi Düymələri */}
             <div className="flex flex-wrap gap-1.5">
-              {FILTER_AREAS.map((a) => (
+              {QUICK_AREAS.map((a) => (
                 <button
                   key={a}
                   type="button"
@@ -321,37 +399,91 @@ export default function RealtorsPage() {
             </div>
           </div>
 
-          {/* İxtisaslaşma Filtrləri (Specialties) */}
+          {/* 2. Komissiya Faizi Filtrləri (Commission Rate) */}
           <div className="pt-2 border-t border-navy/10 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center gap-3">
-            <span className="text-xs font-bold text-navy/70 dark:text-slate-300 flex items-center gap-1 shrink-0">
-              <FiTag className="text-copper" /> Xüsusiyyət / Növ:
+            <span className="text-xs font-bold text-navy/70 dark:text-slate-300 flex items-center gap-1.5 shrink-0">
+              <FiPercent className="text-copper" /> Komissiya Faizi:
             </span>
             <div className="flex flex-wrap gap-1.5 flex-1">
-              {FILTER_SPECIALTIES.map((s) => (
+              {COMMISSION_RATES.map((c) => (
                 <button
-                  key={s}
+                  key={c.id}
                   type="button"
-                  onClick={() => setSpecialtyFilter(s)}
+                  onClick={() => setCommissionFilter(c.id)}
                   className={`px-3 py-1 rounded-xl text-xs font-semibold transition border cursor-pointer ${
-                    specialtyFilter === s
-                      ? "bg-navy text-white border-navy dark:bg-amber-600 dark:border-amber-600 shadow-xs"
-                      : "bg-slate-50 dark:bg-slate-800 text-navy/70 dark:text-slate-300 border-navy/10 dark:border-slate-700 hover:border-copper"
+                    commissionFilter === c.id
+                      ? "bg-emerald-600 text-white border-emerald-600 shadow-xs"
+                      : "bg-slate-50 dark:bg-slate-800 text-navy/70 dark:text-slate-300 border-navy/10 dark:border-slate-700 hover:border-emerald-500"
                   }`}
                 >
-                  {s === "all" ? "Bütün Növlər" : s}
+                  {c.label}
                 </button>
               ))}
             </div>
+          </div>
 
-            {(search || areaFilter !== "all" || specialtyFilter !== "all" || sortBy !== "score") && (
-              <button
-                type="button"
-                onClick={handleResetFilters}
-                className="text-xs text-copper hover:underline font-bold flex items-center gap-1 shrink-0 cursor-pointer"
-              >
-                <FiRotateCcw className="text-xs" /> Filtrləri Sıfırla
-              </button>
-            )}
+          {/* 3. İxtisaslaşma & Əlavə Detallar (Reytinq, VÖEN) */}
+          <div className="pt-2 border-t border-navy/10 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3 flex-wrap">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-xs font-bold text-navy/70 dark:text-slate-300 flex items-center gap-1 shrink-0">
+                <FiTag className="text-copper" /> Növ:
+              </span>
+              <div className="flex flex-wrap gap-1.5">
+                {FILTER_SPECIALTIES.map((s) => (
+                  <button
+                    key={s}
+                    type="button"
+                    onClick={() => setSpecialtyFilter(s)}
+                    className={`px-2.5 py-1 rounded-xl text-xs font-semibold transition border cursor-pointer ${
+                      specialtyFilter === s
+                        ? "bg-navy text-white border-navy dark:bg-amber-600 dark:border-amber-600 shadow-xs"
+                        : "bg-slate-50 dark:bg-slate-800 text-navy/70 dark:text-slate-300 border-navy/10 dark:border-slate-700 hover:border-copper"
+                    }`}
+                  >
+                    {s === "all" ? "Bütün Növlər" : s}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Reytinq və VÖEN Filtri */}
+            <div className="flex items-center gap-3 flex-wrap">
+              <div className="flex items-center gap-1.5 text-xs">
+                <span className="font-bold text-navy/70 dark:text-slate-300">Reytinq:</span>
+                <select
+                  value={minRatingFilter}
+                  onChange={(e) => setMinRatingFilter(e.target.value)}
+                  className="px-2.5 py-1 rounded-xl text-xs font-semibold bg-slate-50 dark:bg-slate-800 text-navy dark:text-slate-200 border border-navy/15 dark:border-slate-700 outline-none cursor-pointer"
+                >
+                  <option value="all">Hamısı</option>
+                  <option value="4.5">⭐ 4.5+ ulduz</option>
+                  <option value="4.8">⭐ 4.8+ ulduz (Top)</option>
+                  <option value="5.0">⭐ 5.0 ulduz</option>
+                </select>
+              </div>
+
+              <label className="flex items-center gap-1.5 text-xs font-semibold text-navy/80 dark:text-slate-300 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={verifiedOnly}
+                  onChange={(e) => setVerifiedOnly(e.target.checked)}
+                  className="rounded text-copper focus:ring-copper"
+                />
+                <span className="flex items-center gap-1">
+                  <FiShield className="text-emerald-500" /> Yalnız VÖEN-li
+                </span>
+              </label>
+
+              {(search || areaFilter !== "all" || commissionFilter !== "all" || specialtyFilter !== "all" || minRatingFilter !== "all" || verifiedOnly || sortBy !== "score") && (
+                <button
+                  type="button"
+                  onClick={handleResetFilters}
+                  className="text-xs text-copper hover:underline font-bold flex items-center gap-1 shrink-0 cursor-pointer ml-2"
+                >
+                  <FiRotateCcw className="text-xs" /> Sıfırla
+                </button>
+              )}
+            </div>
           </div>
         </div>
 

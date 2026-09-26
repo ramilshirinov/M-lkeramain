@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { addLiveWaitingList } from "@/lib/backend/db";
+import { getSupabaseAdminClient, isSupabaseConfigured } from "@/lib/supabaseServer";
 
 export async function POST(req) {
   try {
@@ -13,7 +14,27 @@ export async function POST(req) {
       );
     }
 
+    // 1. Supabase-ə yazmaq
+    if (isSupabaseConfigured()) {
+      try {
+        const supabase = getSupabaseAdminClient();
+        await supabase.from("waiting_list").insert([
+          {
+            email: email || null,
+            phone: phone || null,
+            role: role || "buyer",
+            note: note || "Canlı / AI Qeydiyyat",
+            created_at: new Date().toISOString(),
+          },
+        ]);
+      } catch (sbErr) {
+        console.warn("Supabase waiting_list insert fallback:", sbErr.message);
+      }
+    }
+
+    // 2. Local Database
     const entry = addLiveWaitingList({ email, phone, role, note });
+
     return NextResponse.json({
       success: true,
       message: "Təşəkkür edirik! Canlı yayım və PK sistemi aktivləşdikdə sizə bildiriş göndəriləcək.",

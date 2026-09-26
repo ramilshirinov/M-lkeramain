@@ -3,76 +3,113 @@
 import { useState, useEffect, useCallback } from "react";
 import { useApp } from "@/context/AppContext";
 
+function getLocalFavorites() {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = localStorage.getItem("mulkera_favorites");
+    return raw ? JSON.parse(raw) : [];
+  } catch (e) {
+    return [];
+  }
+}
+
+function setLocalFavorites(ids) {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem("mulkera_favorites", JSON.stringify(ids));
+    window.dispatchEvent(new CustomEvent("mulkera_favorites_updated", { detail: ids }));
+  } catch (e) {}
+}
+
 export function useFavorite(listingId) {
   const { user } = useApp();
   const [isFavorited, setIsFavorited] = useState(false);
   const [loading, setLoading] = useState(true);
   const [toggling, setToggling] = useState(false);
 
-  useEffect(() => {
-    let active = true;
+  // Statusu yoxlayırıq
+  const checkStatus = useCallback(async () => {
+    if (!listingId) {
+      setIsFavorited(false);
+      setLoading(false);
+      return;
+    }
 
-    async function checkFavorite() {
-      if (!user || !listingId) {
-        if (active) {
-          setIsFavorited(false);
-          setLoading(false);
-        }
-        return;
-      }
-
-      setLoading(true);
+    if (user?.id) {
       try {
         const res = await fetch(`/api/listings/${listingId}/favorite?userId=${user.id}`);
         const json = await res.json();
-        if (active) {
-          setIsFavorited(!!json.favorited);
-        }
+        setIsFavorited(!!json.favorited);
       } catch (err) {
-        console.error("Sevimlilər yoxlanılarkən xəta:", err);
-      } finally {
-        if (active) setLoading(false);
+        // Fallback: local
+        const local = getLocalFavorites();
+        setIsFavorited(local.includes(String(listingId)));
       }
+    } else {
+      // İstifadəçi daxil olmayıbsa: local yaddaş
+      const local = getLocalFavorites();
+      setIsFavorited(local.includes(String(listingId)));
     }
+    setLoading(false);
+  }, [user?.id, listingId]);
 
-    checkFavorite();
-    return () => {
-      active = false;
-    };
-  }, [user, listingId]);
+  useEffect(() => {
+    checkStatus();
 
-  const toggleFavorite = useCallback(async () => {
-    if (!user) {
-      return { requiresAuth: true };
+    const onUpdate = () => checkStatus();
+    if (typeof window !== "undefined") {
+      window.addEventListener("mulkera_favorites_updated", onUpdate);
+      return () => window.removeEventListener("mulkera_favorites_updated", onUpdate);
     }
-    if (!listingId || toggling) return {};
+  }, [checkStatus]);
 
-    const previous = isFavorited;
-    setToggling(true);
-    setIsFavorited(!previous); // Optimistic UI
-
-    try {
-      const res = await fetch(`/api/listings/${listingId}/favorite`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId: user.id }),
-      });
-      const json = await res.json();
-
-      if (!res.ok || !json.success) {
-        throw new Error(json.message || "Xəta baş verdi");
+  const toggleFavorite = useCallback(
+    async (e) => {
+      if (e) {
+        e.preventDefault();
+        e.stopPropagation();
       }
 
-      setIsFavorited(!!json.favorited);
-      return { success: true, favorited: json.favorited };
-    } catch (err) {
-      console.error("Sevimlilərə əlavə/silmə xətası:", err);
-      setIsFavorited(previous);
-      return { error: err };
-    } finally {
+      if (!listingId || toggling) return;
+
+      const previous = isFavorited;
+      const nextState = !previous;
+      setToggling(true);
+      setIsFavorited(nextState); // Optimistic UI
+
+      // Local storage yeniləyirik
+      const local = getLocalFavorites();
+      let newLocal = [];
+      if (nextState) {
+        newLocal = Array.from(new Set([...local, String(listingId)]));
+      } else {
+        newLocal = local.filter((id) => id !== String(listingId));
+      }
+      setLocalFavorites(newLocal);
+
+      // Əgər istifadəçi daxil olubsa, birbaşa Supabase/API ilə sinxron edirik
+      if (user?.id) {
+        try {
+          const res = await fetch(`/api/listings/${listingId}/favorite`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ userId: user.id }),
+          });
+          const json = await res.json();
+          if (json.success) {
+            setIsFavorited(!!json.favorited);
+            return { success: true, favorited: json.favorited };
+          }
+        } catch (err) {
+          console.warn("Supabase favorite sync error:", err);
+        }
+      }
+
       setToggling(false);
-    }
-  }, [user, listingId, isFavorited, toggling]);
+      return { success: true, favorited: nextState };
+    },
+    [user?.id, listingId, isFavorited, toggling]
+  );
 
   return { isFavorited, loading, toggling, toggleFavorite };
 }

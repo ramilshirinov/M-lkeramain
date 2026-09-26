@@ -407,22 +407,11 @@ export default function MapPage() {
               onClick={() => setMapType("satellite")}
               className={`px-2.5 py-1 font-bold rounded-lg transition cursor-pointer ${
                 mapType === "satellite"
-                  ? "bg-white dark:bg-slate-900 text-navy dark:text-white shadow-sm"
-                  : "text-navy/60 dark:text-slate-400 hover:text-navy dark:hover:text-white"
+                  ? "bg-white text-navy shadow-sm"
+                  : "text-navy/60 hover:text-navy"
               }`}
             >
               🛰️ Peyk
-            </button>
-            <button
-              type="button"
-              onClick={() => setMapType("dark")}
-              className={`px-2.5 py-1 font-bold rounded-lg transition cursor-pointer ${
-                mapType === "dark"
-                  ? "bg-white dark:bg-slate-900 text-navy dark:text-white shadow-sm"
-                  : "text-navy/60 dark:text-slate-400 hover:text-navy dark:hover:text-white"
-              }`}
-            >
-              🌙 Qaranlıq
             </button>
           </div>
 
@@ -690,12 +679,6 @@ export default function MapPage() {
                   attribution='Tiles &copy; Esri'
                   url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
                   maxZoom={19}
-                />
-              ) : mapType === "dark" ? (
-                <TileLayer
-                  key="dark"
-                  attribution='&copy; CARTO'
-                  url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
                 />
               ) : (
                 <TileLayer

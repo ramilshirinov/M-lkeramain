@@ -4,7 +4,8 @@ import { useState } from "react";
 import Link from "next/link";
 import { useApp } from "@/context/AppContext";
 import { localizedField } from "@/lib/listings";
-import { FiMapPin, FiHome } from "react-icons/fi";
+import { FiMapPin, FiHome, FiHeart } from "react-icons/fi";
+import { useFavorite } from "@/hooks/useFavorite";
 
 const PLACEHOLDER = "/images/placeholder-property.svg";
 
@@ -12,6 +13,7 @@ export default function ListingCard({ listing }) {
   const { locale, language } = useApp();
   const currentLocale = locale || language || "az";
   const [imgError, setImgError] = useState(false);
+  const { isFavorited, toggleFavorite } = useFavorite(listing?.id);
 
   // Şəklin etibarlı təyini: listing_photos, photos, images, image_url və s. yoxlanılır
   const rawPhoto = (() => {
@@ -72,9 +74,24 @@ export default function ListingCard({ listing }) {
             />
           )}
 
+          {/* Sevimli (Favorite) Düyməsi */}
+          <button
+            type="button"
+            onClick={(e) => toggleFavorite(e)}
+            aria-label={isFavorited ? "Favoritlərdən çıxart" : "Favoritlərə əlavə et"}
+            className="absolute top-3 right-3 z-20 p-2 rounded-full bg-white/90 dark:bg-slate-900/90 hover:bg-white dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 hover:text-red-500 shadow-md backdrop-blur-md transition-all active:scale-90 cursor-pointer"
+            title={isFavorited ? "Favoritlərdən çıxart" : "Favoritlərə əlavə et"}
+          >
+            <FiHeart
+              className={`text-sm sm:text-base transition-colors ${
+                isFavorited ? "fill-red-500 text-red-500" : "text-slate-600 dark:text-slate-300 hover:text-red-500"
+              }`}
+            />
+          </button>
+
           {/* VIP badge */}
           {listing.is_vip && (
-            <span className="absolute top-3 right-3 bg-gradient-to-r from-amber-500 to-yellow-500 text-white text-[10px] font-extrabold px-2.5 py-1 rounded-full shadow-md flex items-center gap-1">
+            <span className="absolute top-3 right-12 bg-gradient-to-r from-amber-500 to-yellow-500 text-white text-[10px] font-extrabold px-2.5 py-1 rounded-full shadow-md flex items-center gap-1 z-10">
               <span>👑</span> VIP
             </span>
           )}

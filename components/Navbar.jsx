@@ -25,7 +25,9 @@ export default function Navbar() {
   const dict = rawDict || {};
   const [isOpenLang, setIsOpenLang] = useState(false);
   const [isAiModalOpen, setIsAiModalOpen] = useState(false);
+  const [isSatelliteModalOpen, setIsSatelliteModalOpen] = useState(false);
   const [notified, setNotified] = useState(false);
+  const [satelliteNotified, setSatelliteNotified] = useState(false);
 
   const linkClass = "text-navy dark:text-slate-200 hover:text-copper transition";
 
@@ -70,12 +72,39 @@ export default function Navbar() {
             <FiAward className="text-copper" /> Rieltorlar
           </Link>
 
-          {/* AI Rieltor (Coming Soon) Menyusu */}
+          {/* Canlı Yayım & Rieltor PK (Kvadrat Çərçivə - Mavi & Mərkəzlənmiş) */}
+          <div className="relative group">
+            <button
+              type="button"
+              onClick={() => setIsSatelliteModalOpen(true)}
+              className="flex items-center justify-center gap-2 px-3.5 py-1.5 rounded-xl bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300 font-bold text-sm hover:bg-blue-100 hover:border-blue-300 transition-all shadow-xs cursor-pointer"
+            >
+              <span className="tracking-tight font-extrabold text-[13px]">Canlı</span>
+              <span className="text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded-full bg-blue-600 text-white shadow-xs">
+                Tezliklə
+              </span>
+            </button>
+
+            {/* Hover Tooltip İzahı */}
+            <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 hidden group-hover:block w-72 p-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl shadow-xl z-50 text-left pointer-events-none transition-all">
+              <div className="text-xs font-bold text-navy dark:text-white flex items-center gap-1.5 mb-1">
+                <span className="text-blue-600 font-extrabold">✦</span> Canlı Əmlak Yayımı & PK Arenası
+              </div>
+              <p className="text-[11px] text-slate-600 dark:text-slate-300 leading-relaxed">
+                TikTok formatında canlı yayımlar — rieltorlar mülkləri canlı nümayiş etdirir, alıcılar real vaxtda sual verir və canlı duel (PK) keçirilir.
+              </p>
+              <div className="mt-1.5 text-[10px] text-blue-600 font-bold uppercase tracking-wider">
+                Ətraflı məlumat üçün klikləyin ✦
+              </div>
+            </div>
+          </div>
+
+          {/* AI Rieltor (Kvadrat Çərçivə - Tezliklə) */}
           <div className="relative group">
             <button
               type="button"
               onClick={() => setIsAiModalOpen(true)}
-              className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-orange-50 dark:bg-orange-950/40 border border-orange-200 dark:border-orange-800 text-orange-700 dark:text-orange-300 font-semibold text-sm hover:bg-orange-100 transition shadow-sm"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-orange-50 dark:bg-orange-950/40 border border-orange-200 dark:border-orange-800 text-orange-700 dark:text-orange-300 font-semibold text-xs hover:bg-orange-100 transition shadow-xs cursor-pointer"
             >
               <FiCpu className="text-orange-500 animate-pulse text-sm" />
               <span>AI Rieltor</span>
@@ -97,17 +126,6 @@ export default function Navbar() {
               </div>
             </div>
           </div>
-
-          <Link href="/live" className={`flex items-center gap-1.5 ${linkClass}`}>
-            <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
-            </span>
-            <span className="font-bold text-red-600 dark:text-red-400">Canlı PK</span>
-            <span className="text-[10px] bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300 font-extrabold px-1.5 py-0.5 rounded-md">
-              Tezliklə
-            </span>
-          </Link>
 
           <Link href="/favorites" className={`flex items-center gap-1.5 ${linkClass}`}>
             <FiHeart className="text-copper" /> {dict.nav?.favorites || "Favoritlər"}
@@ -283,11 +301,11 @@ export default function Navbar() {
             </div>
 
             {/* Düymələr */}
-            <div className="flex items-center gap-3">
+            <div className="flex flex-col sm:flex-row items-center gap-3">
               <button
                 type="button"
                 onClick={() => setNotified(true)}
-                className={`flex-1 py-3 px-4 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 ${
+                className={`w-full sm:flex-1 py-3 px-4 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
                   notified
                     ? "bg-emerald-600 text-white shadow-md"
                     : "bg-navy hover:bg-copper text-white shadow-md active:scale-[0.98]"
@@ -304,10 +322,141 @@ export default function Navbar() {
                 )}
               </button>
 
+              <Link
+                href="/ai-realtor"
+                onClick={() => setIsAiModalOpen(false)}
+                className="w-full sm:w-auto py-3 px-4 rounded-xl bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold transition text-center shadow-xs"
+              >
+                Ətraflı Səhifəyə Keç &rarr;
+              </Link>
+
               <button
                 type="button"
                 onClick={() => setIsAiModalOpen(false)}
-                className="py-3 px-5 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-bold text-slate-600 dark:text-slate-300 transition"
+                className="w-full sm:w-auto py-3 px-5 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-bold text-slate-600 dark:text-slate-300 transition cursor-pointer"
+              >
+                Bağla
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Canlı Yayım / Canlı PK Coming Soon Modal */}
+      {isSatelliteModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="relative w-full max-w-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 sm:p-8 shadow-2xl overflow-hidden text-navy dark:text-slate-100">
+            {/* Dekorativ Qradiyent İşıq */}
+            <div className="absolute -top-20 -right-20 w-48 h-48 bg-blue-500/20 rounded-full blur-3xl pointer-events-none" />
+            <div className="absolute -bottom-20 -left-20 w-48 h-48 bg-indigo-500/15 rounded-full blur-3xl pointer-events-none" />
+
+            {/* Bağlamaq Düyməsi */}
+            <button
+              type="button"
+              onClick={() => setIsSatelliteModalOpen(false)}
+              className="absolute top-5 right-5 p-2 rounded-full bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-500 hover:text-navy dark:hover:text-white transition cursor-pointer"
+              title="Bağla"
+            >
+              <FiX className="text-lg" />
+            </button>
+
+            {/* Nişan və Başlıq */}
+            <div className="flex items-center gap-2 mb-3">
+              <span className="inline-flex items-center px-3 py-1 rounded-full bg-blue-100 dark:bg-blue-950/60 border border-blue-300 dark:border-blue-800 text-blue-700 dark:text-blue-300 text-xs font-bold uppercase tracking-wider">
+                Tezliklə · Coming Soon
+              </span>
+            </div>
+
+            <h3 className="text-2xl font-black font-heading tracking-tight mb-2 text-navy dark:text-white">
+              Canlı Əmlak Yayımı & PK Arenası
+            </h3>
+
+            {/* Əsas İzah Cümləsi */}
+            <div className="p-4 rounded-2xl bg-blue-50/80 dark:bg-blue-950/30 border border-blue-200/80 dark:border-blue-800/60 mb-5">
+              <p className="text-sm font-semibold text-blue-900 dark:text-blue-200 leading-relaxed">
+                “TikTok və sosial şəbəkələrdə olduğu kimi peşəkar rieltorlar mülkləri canlı yayımda nümayiş etdirir, alıcılar sual verir və rieltorlar arasında canlı duel (PK) keçirilir.”
+              </p>
+            </div>
+
+            {/* Gələcək İmkanlar Siyahısı */}
+            <div className="space-y-3 mb-6">
+              <div className="flex items-start gap-3 p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800">
+                <div className="w-8 h-8 rounded-lg bg-blue-500/10 text-blue-600 flex items-center justify-center shrink-0 mt-0.5 text-base">
+                  📱
+                </div>
+                <div>
+                  <h4 className="text-xs font-bold text-navy dark:text-white">
+                    TikTok Formatında Canlı Mülk Gəzintisi
+                  </h4>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-snug">
+                    Rieltor mənzilin hər otağını canlı videoda göstərir, izləyicilərin &quot;balkonu göstərin&quot;, &quot;mətbəxi yaxından çəkin&quot; suallarına dərhal cavab verir.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-3 p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800">
+                <div className="w-8 h-8 rounded-lg bg-indigo-500/10 text-indigo-600 flex items-center justify-center shrink-0 mt-0.5 text-base">
+                  ⚔️
+                </div>
+                <div>
+                  <h4 className="text-xs font-bold text-navy dark:text-white">
+                    Canlı PK Döyüşü (Mülklərin Yarışı)
+                  </h4>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-snug">
+                    İki fərqli rieltor eyni anda canlı yayımda öz mülklərinin üstünlüklərini müdafiə edir, alıcılar səs verir və ən yaxşı qiymət təklifini qazanır.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-3 p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800">
+                <div className="w-8 h-8 rounded-lg bg-emerald-500/10 text-emerald-600 flex items-center justify-center shrink-0 mt-0.5">
+                  <FiCheckCircle className="text-base" />
+                </div>
+                <div>
+                  <h4 className="text-xs font-bold text-navy dark:text-white">
+                    Canlı Hərrac və Ani Təklif
+                  </h4>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-snug">
+                    Bəyəndiyiniz mənzil üçün canlı efirdə rieltora birbaşa təklif göndərib beh ödənişini ilk bron edən siz olun.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Düymələr */}
+            <div className="flex flex-col sm:flex-row items-center gap-3">
+              <button
+                type="button"
+                onClick={() => setSatelliteNotified(true)}
+                className={`w-full sm:flex-1 py-3 px-4 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
+                  satelliteNotified
+                    ? "bg-emerald-600 text-white shadow-md"
+                    : "bg-blue-600 hover:bg-blue-700 text-white shadow-md active:scale-[0.98]"
+                }`}
+              >
+                {satelliteNotified ? (
+                  <>
+                    <FiCheckCircle /> Bildiriş qeydə alındı!
+                  </>
+                ) : (
+                  <>
+                    <FiZap /> Çıxış barədə mənə bildir
+                  </>
+                )}
+              </button>
+
+              <Link
+                href="/live"
+                onClick={() => setIsSatelliteModalOpen(false)}
+                className="w-full sm:w-auto py-3 px-4 rounded-xl bg-navy hover:bg-copper text-white text-xs font-bold transition text-center shadow-xs"
+              >
+                Canlı Arenaya Keç &rarr;
+              </Link>
+
+              <button
+                type="button"
+                onClick={() => setIsSatelliteModalOpen(false)}
+                className="w-full sm:w-auto py-3 px-5 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-bold text-slate-600 dark:text-slate-300 transition cursor-pointer"
               >
                 Bağla
               </button>
