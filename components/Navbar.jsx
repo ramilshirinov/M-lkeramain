@@ -104,6 +104,9 @@ export default function Navbar() {
               <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
             </span>
             <span className="font-bold text-red-600 dark:text-red-400">Canlı PK</span>
+            <span className="text-[10px] bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300 font-extrabold px-1.5 py-0.5 rounded-md">
+              Tezliklə
+            </span>
           </Link>
 
           <Link href="/favorites" className={`flex items-center gap-1.5 ${linkClass}`}>

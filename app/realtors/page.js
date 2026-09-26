@@ -46,6 +46,8 @@ export default function RealtorsPage() {
   const [realtors, setRealtors] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [regionFilter, setRegionFilter] = useState("all");
+  const [commissionFilter, setCommissionFilter] = useState("all");
   const [sortBy, setSortBy] = useState("score"); // "score", "rating", "sales", "speed"
   const [areaFilter, setAreaFilter] = useState("all");
   const [specialtyFilter, setSpecialtyFilter] = useState("all");
@@ -116,6 +118,27 @@ export default function RealtorsPage() {
     setSortBy("score");
   };
 
+  const AZ_CITIES = [
+    "Bütün Şəhər və Rayonlar",
+    "Bakı",
+    "Sumqayıt",
+    "Xırdalan",
+    "Gəncə",
+    "Naxçıvan",
+    "Mingəçevir",
+    "Lənkəran",
+    "Şəki",
+    "Yevlax",
+    "Quba",
+    "Qusar",
+    "Şamaxı",
+    "Qəbələ",
+    "Göyçay",
+    "Bərdə",
+    "Salyan",
+    "Şəmkir"
+  ];
+
   const filteredRealtors = useMemo(() => {
     let list = [...realtors];
 
@@ -139,6 +162,23 @@ export default function RealtorsPage() {
       list = list.filter((r) =>
         r.specialties?.some((s) => s.toLowerCase().includes(specialtyFilter.toLowerCase()))
       );
+    }
+
+    if (regionFilter !== "all") {
+      const reg = regionFilter.toLowerCase();
+      list = list.filter(
+        (r) =>
+          (r.agency_name || "").toLowerCase().includes(reg) ||
+          (r.bio || "").toLowerCase().includes(reg) ||
+          (r.full_name || "").toLowerCase().includes(reg)
+      );
+    }
+
+    if (commissionFilter !== "all") {
+      list = list.filter((r) => {
+        const comm = (r.commission_rate || "").toString();
+        return comm.includes(commissionFilter);
+      });
     }
 
     if (sortBy === "sales") {

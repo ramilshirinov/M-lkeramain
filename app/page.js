@@ -68,15 +68,15 @@ export default function HomePage() {
   ];
 
   return (
-    <div className="min-h-screen bg-white text-navy">
-      {/* Hero Section (Modern Retro-Futuristic Motion UI with 3D Tilt & AI Assistant) */}
+<div className="min-h-screen bg-[#F8FAFC] dark:bg-slate-950 text-navy dark:text-slate-100">
+      {/* Hero Section */}
       <HeroSection
         searchQuery={searchQuery}
         setSearchQuery={setSearchQuery}
         onSearch={goSearch}
       />
 
-      {/* Kateqoriya tabları (Şəkildəki kimi zərif kapsul düymələr) */}
+      {/* Kateqoriya tabları */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 pb-8">
         <div className="flex flex-wrap justify-center gap-3">
           {tabs.map((cat) => (
