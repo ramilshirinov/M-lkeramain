@@ -31,27 +31,46 @@ export default function HomePage() {
   const [selectedCategory, setSelectedCategory] = useState("all");
 
   useEffect(() => {
-    if (!supabase) return;
     let cancelled = false;
 
     const fetchListings = async () => {
       setLoading(true);
-      let query = supabase
-        .from("listings")
-        .select(selectedCategory === "all" ? SELECT_ALL : SELECT_BY_CATEGORY)
-        .order("is_vip", { ascending: false })
-        .order("created_at", { ascending: false })
-        .limit(6);
+      try {
+        // 1. Daxili API vasitəsilə kateqoriya filtri
+        const param = selectedCategory !== "all" ? `?category=${selectedCategory}` : "";
+        const res = await fetch(`/api/listings${param}`, { cache: "no-store" });
+        if (res.ok) {
+          const json = await res.json();
+          if (!cancelled && Array.isArray(json.data)) {
+            setListings(json.data.slice(0, 6));
+            setLoading(false);
+            return;
+          }
+        }
 
-      if (selectedCategory !== "all") {
-        query = query.eq("categories.slug", selectedCategory);
+        // 2. Supabase birbaşa sorğusu
+        if (supabase) {
+          let query = supabase
+            .from("listings")
+            .select(selectedCategory === "all" ? SELECT_ALL : SELECT_BY_CATEGORY)
+            .order("is_vip", { ascending: false })
+            .order("created_at", { ascending: false })
+            .limit(6);
+
+          if (selectedCategory !== "all") {
+            query = query.or(`categories.slug.eq.${selectedCategory},category.ilike.%${selectedCategory}%`);
+          }
+
+          const { data, error } = await query;
+          if (!cancelled) {
+            if (!error && data) setListings(data);
+          }
+        }
+      } catch (err) {
+        console.error("Elanlar yüklənmədi:", err);
+      } finally {
+        if (!cancelled) setLoading(false);
       }
-
-      const { data, error } = await query;
-      if (cancelled) return;
-      if (error) console.error("Elanlar yüklənmədi:", error.message);
-      setListings(data || []);
-      setLoading(false);
     };
 
     fetchListings();
@@ -108,7 +127,10 @@ export default function HomePage() {
           <h2 className="text-2xl sm:text-3xl font-extrabold font-heading text-[#111827] dark:text-white">
             {dict.home?.featured || "Seçilmiş elanlar"}
           </h2>
-          <Link href="/listings" className="text-copper font-semibold text-sm hover:underline">
+          <Link
+            href={`/listings${selectedCategory !== "all" ? `?category=${selectedCategory}` : ""}`}
+            className="text-copper font-semibold text-sm hover:underline"
+          >
             {dict.home?.viewAll || "Hamısına bax"} &rarr;
           </Link>
         </div>

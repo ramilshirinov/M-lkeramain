@@ -194,22 +194,6 @@ export default function AddListingPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-semibold text-navy dark:text-slate-200 mb-2">İnteraktiv Xəritədə Nöqtə Qeyd Edin (Məkan Seçimi)</label>
-              <LocationPicker
-                latitude={form.latitude}
-                longitude={form.longitude}
-                onChange={(coords) => {
-                  if (coords) {
-                    update("latitude", coords.lat);
-                    update("longitude", coords.lng);
-                  } else {
-                    update("latitude", "");
-                    update("longitude", "");
-                  }
-                }}
-              />
-            </div>
-            <div>
               <label className="block text-sm font-semibold text-navy dark:text-slate-200 mb-2">Ətraflı Məlumat *</label>
               <textarea
                 rows={4}
