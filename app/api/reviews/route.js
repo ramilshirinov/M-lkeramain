@@ -1,5 +1,13 @@
 import { NextResponse } from "next/server";
-import { getListingReviews, addListingReview, addRealtorReview, getDb } from "@/lib/backend/db";
+import {
+  getListingReviews,
+  addListingReview,
+  addRealtorReview,
+  likeReview,
+  replyToReview,
+  reportReview,
+  getDb
+} from "@/lib/backend/db";
 import { getSupabaseAdminClient, isSupabaseConfigured } from "@/lib/supabaseServer";
 
 export async function GET(req) {
@@ -13,15 +21,40 @@ export async function GET(req) {
       try {
         const supabase = getSupabaseAdminClient();
 
-        if (realtorId) {
-          // Əgər spesifik rieltor axtarılırsa
+        if (listingId) {
+          const { data, error } = await supabase
+            .from("realtor_reviews")
+            .select("*")
+            .eq("listing_id", listingId)
+            .eq("is_hidden", false)
+            .order("created_at", { ascending: false });
+
+          if (!error && Array.isArray(data) && data.length > 0) {
+            const formatted = data.map((r) => ({
+              id: r.id,
+              author_name: r.reviewer_name || "Müştəri",
+              rating: r.rating,
+              comment: r.comment,
+              likes: r.likes || 0,
+              replies: r.replies || [],
+              is_reported: !!r.is_reported,
+              date: r.created_at ? new Date(r.created_at).toLocaleDateString("az-AZ") : "Bu gün",
+              created_at: r.created_at,
+            }));
+            return NextResponse.json({
+              success: true,
+              reviews: formatted,
+              count: formatted.length,
+              source: "supabase",
+            });
+          }
+        } else if (realtorId) {
           let query = supabase
             .from("realtor_reviews")
             .select("*")
             .eq("is_hidden", false)
             .order("created_at", { ascending: false });
 
-          // Həm verilən id, həm də Ramilin profili ilə yoxlayırıq
           if (realtorId === "u-1790232121053" || realtorId === "69139734-0c43-4184-ab9e-d1f093e2ef25") {
             query = query.or(`realtor_id.eq.${realtorId},realtor_id.eq.69139734-0c43-4184-ab9e-d1f093e2ef25`);
           } else {
@@ -41,6 +74,8 @@ export async function GET(req) {
               author_name: r.reviewer_name || "Müştəri",
               rating: r.rating,
               comment: r.comment,
+              likes: r.likes || 0,
+              replies: r.replies || [],
               is_reported: !!r.is_reported,
               date: r.created_at ? new Date(r.created_at).toLocaleDateString("az-AZ") : "Bu gün",
               created_at: r.created_at,
@@ -55,7 +90,6 @@ export async function GET(req) {
             });
           }
         } else {
-          // Bütün rəylər (məsələn admin və ya ümumi baxış üçün)
           const { data, error } = await supabase
             .from("realtor_reviews")
             .select("*")
@@ -100,29 +134,89 @@ export async function GET(req) {
 export async function POST(req) {
   try {
     const body = await req.json();
-    const { listing_id, realtor_id, rating, comment, reviewer_name, user_id } = body;
+    const { action, review_id, listing_id, realtor_id, rating, comment, reviewer_name, user_id, reason, details } = body;
 
-    if (!rating || !comment) {
-      return NextResponse.json({ success: false, message: "Reytinq və rəy mətni məcburidir." }, { status: 400 });
+    // Rəyi bəyənmə (Like)
+    if (action === "like") {
+      const likes = likeReview(review_id);
+      if (isSupabaseConfigured() && review_id) {
+        try {
+          const supabase = getSupabaseAdminClient();
+          const { data: rev } = await supabase.from("realtor_reviews").select("likes").eq("id", review_id).single();
+          if (rev) {
+            await supabase.from("realtor_reviews").update({ likes: (rev.likes || 0) + 1 }).eq("id", review_id);
+          }
+        } catch (e) {
+          console.warn("Supabase like update warning:", e.message);
+        }
+      }
+      return NextResponse.json({ success: true, likes });
+    }
+
+    // Rəyə cavab yazma (Reply)
+    if (action === "reply") {
+      if (!comment) {
+        return NextResponse.json({ success: false, message: "Cavab mətni məcburidir." }, { status: 400 });
+      }
+      const reply = replyToReview(review_id, { reviewer_name, comment, user_id });
+      if (isSupabaseConfigured() && review_id) {
+        try {
+          const supabase = getSupabaseAdminClient();
+          const { data: rev } = await supabase.from("realtor_reviews").select("replies").eq("id", review_id).single();
+          if (rev) {
+            const currentReplies = Array.isArray(rev.replies) ? rev.replies : [];
+            const newReplies = [...currentReplies, { author_name: reviewer_name || "İstifadəçi", comment, date: new Date().toISOString() }];
+            await supabase.from("realtor_reviews").update({ replies: newReplies }).eq("id", review_id);
+          }
+        } catch (e) {
+          console.warn("Supabase reply update warning:", e.message);
+        }
+      }
+      return NextResponse.json({ success: true, data: reply });
+    }
+
+    // Rəyi bildirmə / şikayət etmə (Report)
+    if (action === "report") {
+      const report = reportReview(review_id, { reason, details, user_id });
+      if (isSupabaseConfigured() && review_id) {
+        try {
+          const supabase = getSupabaseAdminClient();
+          const { data: rev } = await supabase.from("realtor_reviews").select("report_count").eq("id", review_id).single();
+          if (rev) {
+            await supabase.from("realtor_reviews").update({
+              is_reported: true,
+              report_count: (rev.report_count || 0) + 1
+            }).eq("id", review_id);
+          }
+        } catch (e) {
+          console.warn("Supabase report update warning:", e.message);
+        }
+      }
+      return NextResponse.json({ success: true, data: report });
+    }
+
+    // Normal rəy göndərmə
+    if (!comment) {
+      return NextResponse.json({ success: false, message: "Rəy mətni məcburidir." }, { status: 400 });
     }
 
     let createdReview = null;
 
-    // 1. Supabase realtor_reviews cədvəlinə yazırıq
-    if (isSupabaseConfigured() && realtor_id) {
+    if (isSupabaseConfigured()) {
       try {
         const supabase = getSupabaseAdminClient();
         const targetRealtorId =
-          realtor_id === "u-1790232121053" ? "69139734-0c43-4184-ab9e-d1f093e2ef25" : realtor_id;
+          realtor_id === "u-1790232121053" ? "69139734-0c43-4184-ab9e-d1f093e2ef25" : (realtor_id || null);
 
         const { data, error } = await supabase
           .from("realtor_reviews")
           .insert([
             {
-              realtor_id: targetRealtorId,
+              listing_id: listing_id || null,
+              realtor_id: targetRealtorId || null,
               reviewer_id: user_id && user_id.length > 20 ? user_id : null,
               reviewer_name: reviewer_name || "Müştəri",
-              rating: Number(rating),
+              rating: Number(rating || 5),
               comment: comment.trim(),
               is_reported: false,
               is_hidden: false,
@@ -135,44 +229,19 @@ export async function POST(req) {
 
         if (!error && data) {
           createdReview = data;
-
-          // Rieltorun orta reytinqini və sayını avtomatik yeniləyirik
-          const { data: allRealtorReviews } = await supabase
-            .from("realtor_reviews")
-            .select("rating")
-            .eq("realtor_id", targetRealtorId)
-            .eq("is_hidden", false);
-
-          if (allRealtorReviews && allRealtorReviews.length > 0) {
-            const count = allRealtorReviews.length;
-            const avgRating = Number(
-              (allRealtorReviews.reduce((sum, r) => sum + Number(r.rating || 5), 0) / count).toFixed(1)
-            );
-
-            await supabase
-              .from("profiles")
-              .update({
-                rating: avgRating,
-                rating_count: count,
-                updated_at: new Date().toISOString(),
-              })
-              .eq("id", targetRealtorId);
-          }
-        } else if (error) {
-          console.error("Supabase review insert error:", error.message);
         }
       } catch (sbErr) {
-        console.warn("Supabase review insert failed, fallback to local:", sbErr.message);
+        console.warn("Supabase review insert warning:", sbErr.message);
       }
     }
 
-    // 2. Local fallback sinxronlaşdırması
+    // Local DB sinxronlaşdırılması
     if (listing_id) {
       const newReview = addListingReview({
         listingId: listing_id,
         reviewer_name,
         reviewer_id: user_id,
-        rating,
+        rating: rating || 5,
         comment,
       });
       return NextResponse.json({ success: true, data: newReview });
@@ -182,7 +251,7 @@ export async function POST(req) {
       const localReview = addRealtorReview(realtor_id, {
         reviewer_name,
         user_id,
-        rating,
+        rating: rating || 5,
         comment,
       });
       return NextResponse.json({ success: true, data: createdReview || localReview });

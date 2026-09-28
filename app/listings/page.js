@@ -368,6 +368,7 @@ function ListingsContent() {
                 <option value="sale">Satış</option>
                 <option value="rent">Kirayə</option>
                 <option value="daily">Günlük</option>
+                <option value="other">Digər</option>
               </select>
             </div>
 

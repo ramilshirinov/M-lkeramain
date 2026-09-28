@@ -18,6 +18,7 @@ import {
   FiZap,
   FiX,
   FiCheckCircle,
+  FiMenu,
 } from "react-icons/fi";
 
 export default function Navbar() {
@@ -26,6 +27,7 @@ export default function Navbar() {
   const [isOpenLang, setIsOpenLang] = useState(false);
   const [isAiModalOpen, setIsAiModalOpen] = useState(false);
   const [isSatelliteModalOpen, setIsSatelliteModalOpen] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [notified, setNotified] = useState(false);
   const [satelliteNotified, setSatelliteNotified] = useState(false);
 
@@ -204,7 +206,7 @@ export default function Navbar() {
               <FiUser className="text-copper text-lg" />
             </Link>
           ) : (
-            <div className="flex items-center gap-3">
+            <div className="hidden sm:flex items-center gap-3">
               <Link href="/login" className={`text-sm font-semibold ${linkClass}`}>
                 {dict.nav?.login || "Daxil ol"}
               </Link>
@@ -216,8 +218,100 @@ export default function Navbar() {
               </Link>
             </div>
           )}
+
+          {/* Mobil Menyu Düyməsi (Hamburger) */}
+          <button
+            type="button"
+            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+            className="md:hidden p-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-navy dark:text-slate-100 hover:text-copper transition cursor-pointer"
+            aria-label="Mobil Menyu"
+          >
+            {isMobileMenuOpen ? <FiX className="text-xl" /> : <FiMenu className="text-xl" />}
+          </button>
         </div>
       </div>
+
+      {/* Mobil Menyu Çəkməcəsi (Drawer) */}
+      {isMobileMenuOpen && (
+        <div className="md:hidden bg-white dark:bg-slate-900 border-b border-navy/10 dark:border-slate-800 px-4 py-5 space-y-4 shadow-xl">
+          <div className="flex flex-col space-y-3 font-semibold text-sm">
+            <Link
+              href="/listings"
+              onClick={() => setIsMobileMenuOpen(false)}
+              className="px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 text-navy dark:text-slate-100 hover:text-copper transition"
+            >
+              🏠 {dict.nav?.listings || "Elanlar"}
+            </Link>
+
+            <Link
+              href="/map"
+              onClick={() => setIsMobileMenuOpen(false)}
+              className="px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 text-navy dark:text-slate-100 hover:text-copper transition flex items-center gap-2"
+            >
+              <FiMapPin className="text-copper" /> Xəritə Axtarışı
+            </Link>
+
+            <Link
+              href="/realtors"
+              onClick={() => setIsMobileMenuOpen(false)}
+              className="px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 text-navy dark:text-slate-100 hover:text-copper transition flex items-center gap-2"
+            >
+              <FiAward className="text-copper" /> Rieltorlar
+            </Link>
+
+            <Link
+              href="/favorites"
+              onClick={() => setIsMobileMenuOpen(false)}
+              className="px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 text-navy dark:text-slate-100 hover:text-copper transition flex items-center gap-2"
+            >
+              <FiHeart className="text-copper" /> {dict.nav?.favorites || "Favoritlər"}
+            </Link>
+
+            <Link
+              href="/messages"
+              onClick={() => setIsMobileMenuOpen(false)}
+              className="px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 text-navy dark:text-slate-100 hover:text-copper transition flex items-center gap-2"
+            >
+              <FiMessageSquare className="text-copper" /> Mesajlar
+            </Link>
+
+            {user ? (
+              <Link
+                href="/profile"
+                onClick={() => setIsMobileMenuOpen(false)}
+                className="px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 text-navy dark:text-slate-100 hover:text-copper transition flex items-center gap-2"
+              >
+                <FiUser className="text-copper" /> Profilim
+              </Link>
+            ) : (
+              <div className="flex gap-2 pt-2">
+                <Link
+                  href="/login"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="flex-1 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-navy dark:text-slate-100 text-center font-bold"
+                >
+                  Daxil ol
+                </Link>
+                <Link
+                  href="/register"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="flex-1 py-2.5 rounded-xl bg-copper text-white text-center font-bold"
+                >
+                  Qeydiyyat
+                </Link>
+              </div>
+            )}
+
+            <Link
+              href="/listings/add"
+              onClick={() => setIsMobileMenuOpen(false)}
+              className="w-full py-3 rounded-xl bg-navy dark:bg-copper text-white text-center font-bold flex items-center justify-center gap-2 shadow-sm"
+            >
+              <FiPlusCircle /> {dict.nav?.addListing || "Elan Yerləşdir"}
+            </Link>
+          </div>
+        </div>
+      )}
 
       {/* AI Rieltor Coming Soon Modal */}
       {isAiModalOpen && (

@@ -11,6 +11,9 @@ function normalize(v) {
   const lat = Number(v.lat ?? v.latitude);
   const lng = Number(v.lng ?? v.longitude);
   if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+  if (lat === 0 && lng === 0) return null;
+  // Azərbaycan və Bakı ərazisi üçün təhlükəsiz koordinat yoxlanışı
+  if (lat < 35 || lat > 45 || lng < 44 || lng > 52) return null;
   return { lat, lng };
 }
 
