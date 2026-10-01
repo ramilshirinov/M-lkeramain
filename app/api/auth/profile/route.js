@@ -43,7 +43,9 @@ export async function PUT(req) {
         if (body.specialties !== undefined) updates.specialties = body.specialties;
         if (body.facebook_url !== undefined) updates.facebook_url = body.facebook_url;
         if (body.instagram_url !== undefined) updates.instagram_url = body.instagram_url;
+        if (body.tiktok_url !== undefined) updates.tiktok_url = body.tiktok_url;
         if (body.whatsapp !== undefined) updates.whatsapp = body.whatsapp;
+        if (body.custom_contacts !== undefined) updates.custom_contacts = body.custom_contacts;
         if (body.email_notifications !== undefined) updates.email_notifications = body.email_notifications;
         if (body.sms_notifications !== undefined) updates.sms_notifications = body.sms_notifications;
 

@@ -24,27 +24,21 @@ import {
   FiTag,
   FiAlertTriangle,
   FiPlus,
-  FiX,
-  FiSearch,
-  FiVideo,
-  FiPhone,
+  FiShare2,
 } from "react-icons/fi";
 import { compressImageFile } from "@/lib/media";
 import { AZERBAIJAN_REGIONS } from "@/constants/locations";
 
-// Bütün Azərbaycan şəhər və rayonlarının siyahısı (qəsəbəsiz)
-const ALL_SERVICE_AREAS = (() => {
-  const list = [];
-  AZERBAIJAN_REGIONS.forEach((reg) => {
-    if (reg.name && !list.includes(reg.name)) list.push(reg.name);
-    if (Array.isArray(reg.districts)) {
-      reg.districts.forEach((d) => {
-        if (d.name && !list.includes(d.name)) list.push(d.name);
-      });
-    }
-  });
-  return list;
-})();
+// Bütün Azərbaycan üzrə Şəhərlər və Rayonlar (elan filtri ilə 1:1 eyni)
+const ALL_AZ_LOCATIONS = AZERBAIJAN_REGIONS.flatMap((region) => {
+  const items = [{ id: region.id, name: region.name, group: region.name }];
+  if (Array.isArray(region.districts) && region.districts.length > 0) {
+    region.districts.forEach((d) => {
+      items.push({ id: d.id || `${region.id}-${d.name}`, name: d.name, group: region.name });
+    });
+  }
+  return items;
+});
 
 const SPECIALTY_OPTIONS = [
   "Yeni Tikili",
@@ -73,13 +67,38 @@ export default function ProfilePage() {
     instagram_url: "",
     tiktok_url: "",
     whatsapp: "",
-    additional_contacts: [],
+    custom_contacts: [],
     email_notifications: true,
     sms_notifications: false,
   });
 
-  const [areaSearch, setAreaSearch] = useState("");
-  const [newContact, setNewContact] = useState("");
+  const [areaSearchQuery, setAreaSearchQuery] = useState("");
+
+  const handleAddCustomContact = () => {
+    setForm((prev) => ({
+      ...prev,
+      custom_contacts: [
+        ...(prev.custom_contacts || []),
+        { id: `c-${Date.now()}`, title: "Əlavə Nömrə", value: "" },
+      ],
+    }));
+  };
+
+  const handleUpdateCustomContact = (id, field, val) => {
+    setForm((prev) => ({
+      ...prev,
+      custom_contacts: (prev.custom_contacts || []).map((c) =>
+        c.id === id ? { ...c, [field]: val } : c
+      ),
+    }));
+  };
+
+  const handleRemoveCustomContact = (id) => {
+    setForm((prev) => ({
+      ...prev,
+      custom_contacts: (prev.custom_contacts || []).filter((c) => c.id !== id),
+    }));
+  };
 
   // Şifrə dəyişmə state-ləri
   const [passwordForm, setPasswordForm] = useState({
@@ -125,9 +144,7 @@ export default function ProfilePage() {
         instagram_url: profile?.instagram_url || "",
         tiktok_url: profile?.tiktok_url || "",
         whatsapp: profile?.whatsapp || "",
-        additional_contacts: Array.isArray(profile?.additional_contacts)
-          ? profile.additional_contacts
-          : [],
+        custom_contacts: Array.isArray(profile?.custom_contacts) ? profile.custom_contacts : [],
         email_notifications: profile?.email_notifications ?? true,
         sms_notifications: profile?.sms_notifications ?? false,
       });
@@ -250,7 +267,7 @@ export default function ProfilePage() {
         instagram_url: form.instagram_url,
         tiktok_url: form.tiktok_url,
         whatsapp: form.whatsapp,
-        additional_contacts: form.additional_contacts,
+        custom_contacts: form.custom_contacts,
         email_notifications: form.email_notifications,
         sms_notifications: form.sms_notifications,
       });
@@ -465,45 +482,46 @@ export default function ProfilePage() {
           </div>
         </div>
 
-        {/* Rieltor Fəaliyyət Əraziləri (Bütün Azərbaycan şəhər və rayonları) */}
+        {/* Rieltor Fəaliyyət Əraziləri və İxtisaslaşması (Bütün Azərbaycan Şəhər və Rayonları) */}
         <div className="pt-2 border-t border-navy/10 dark:border-slate-800 space-y-4">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div className="flex items-center justify-between">
             <label className="text-xs font-bold uppercase tracking-wider text-navy dark:text-slate-200 flex items-center gap-1.5">
-              <FiMapPin className="text-copper" /> Fəaliyyət Göstərdiyiniz Ərazilər və Rayonlar
+              <FiMapPin className="text-copper" /> Fəaliyyət Göstərdiyiniz Ərazilər (Bütün Azərbaycan)
             </label>
-            <span className="text-[11px] font-bold text-copper">
-              {(form.service_areas || []).length} ərazi seçilib
+            <span className="text-[11px] text-navy/50 dark:text-slate-400">
+              {(form.service_areas || []).length} ərazi seçildi
             </span>
           </div>
 
           <div className="relative">
-            <FiSearch className="absolute left-3.5 top-1/2 -translate-y-1/2 text-navy/40 dark:text-slate-500 text-xs" />
             <input
               type="text"
-              placeholder="Şəhər və ya rayon axtarın (Məsələn: Yasamal, Sumqayıt, Gəncə, Qəbələ)..."
-              value={areaSearch}
-              onChange={(e) => setAreaSearch(e.target.value)}
-              className="w-full rounded-xl bg-slate-50 dark:bg-slate-800 border border-navy/15 dark:border-slate-700 pl-10 pr-4 py-2.5 text-xs outline-none text-navy dark:text-white focus:border-copper transition"
+              value={areaSearchQuery}
+              onChange={(e) => setAreaSearchQuery(e.target.value)}
+              placeholder="Şəhər və ya rayon axtar (məs: Bakı, Sumqayıt, Yasamal, Şəki, Gəncə)..."
+              className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-navy/15 dark:border-slate-700 text-xs outline-none text-navy dark:text-white placeholder:text-navy/40"
             />
           </div>
 
-          <div className="flex flex-wrap gap-2 max-h-48 overflow-y-auto p-1.5 rounded-xl bg-slate-50/50 dark:bg-slate-800/30 border border-navy/5 dark:border-slate-800">
-            {ALL_SERVICE_AREAS.filter((a) =>
-              a.toLowerCase().includes((areaSearch || "").toLowerCase())
-            ).map((area) => {
-              const active = form.service_areas?.includes(area);
+          <div className="flex flex-wrap gap-2 max-h-56 overflow-y-auto p-2 border border-navy/10 dark:border-slate-800 rounded-xl bg-slate-50/50 dark:bg-slate-900/50">
+            {ALL_AZ_LOCATIONS.filter((loc) =>
+              !areaSearchQuery ||
+              loc.name.toLowerCase().includes(areaSearchQuery.toLowerCase()) ||
+              loc.group.toLowerCase().includes(areaSearchQuery.toLowerCase())
+            ).map((loc) => {
+              const active = form.service_areas?.includes(loc.name);
               return (
                 <button
                   type="button"
-                  key={area}
-                  onClick={() => toggleArea(area)}
+                  key={loc.id}
+                  onClick={() => toggleArea(loc.name)}
                   className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition border cursor-pointer ${
                     active
                       ? "bg-copper text-white border-copper shadow-xs"
                       : "bg-white dark:bg-slate-800 text-navy dark:text-slate-300 border-navy/10 dark:border-slate-700 hover:border-copper"
                   }`}
                 >
-                  {active ? `✓ ${area}` : `+ ${area}`}
+                  {active ? `✓ ${loc.name}` : `+ ${loc.name}`}
                 </button>
               );
             })}
@@ -540,7 +558,7 @@ export default function ProfilePage() {
           </div>
         </div>
 
-        {/* Sosial / Əlaqə Linkləri və Əlavə Əlaqə Vasitələri */}
+        {/* Sosial / Əlaqə Linkləri və TikTok */}
         <div className="pt-2 border-t border-navy/10 dark:border-slate-800 space-y-4">
           <p className="text-xs font-bold uppercase tracking-wider text-navy dark:text-slate-200">
             Sosial Media və Əlaqə Linkləri
@@ -568,8 +586,11 @@ export default function ProfilePage() {
             />
           </div>
 
+          {/* TikTok Linki */}
           <div className="relative">
-            <FiVideo className="absolute left-3.5 top-1/2 -translate-y-1/2 text-navy/40 dark:text-slate-500 text-base" />
+            <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-base font-black text-navy/70 dark:text-slate-300">
+              🎵
+            </span>
             <input
               type="text"
               value={form.tiktok_url}
@@ -590,75 +611,47 @@ export default function ProfilePage() {
             />
           </div>
 
-          {/* Əlavə Əlaqə Vasitələri (Dinamik) */}
-          <div className="pt-2 border-t border-navy/5 dark:border-slate-800 space-y-3">
+          {/* Dinamik Əlavə Əlaqələr / Nömrələr */}
+          <div className="space-y-3 pt-2">
             <div className="flex items-center justify-between">
-              <label className="text-xs font-bold uppercase tracking-wider text-navy dark:text-slate-200 flex items-center gap-1.5">
-                <FiPhone className="text-copper" /> Əlavə Əlaqə Vasitələri / Nömrələri
-              </label>
-            </div>
-
-            {form.additional_contacts && form.additional_contacts.length > 0 && (
-              <div className="space-y-2">
-                {form.additional_contacts.map((contact, idx) => (
-                  <div key={idx} className="flex items-center gap-2">
-                    <div className="flex-1 px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-navy/15 dark:border-slate-700 text-xs text-navy dark:text-slate-100 font-medium">
-                      {contact}
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setForm((prev) => ({
-                          ...prev,
-                          additional_contacts: prev.additional_contacts.filter((_, i) => i !== idx),
-                        }));
-                      }}
-                      className="p-2.5 rounded-xl bg-rose-50 text-rose-600 dark:bg-rose-950/40 dark:text-rose-400 hover:bg-rose-100 transition cursor-pointer"
-                      title="Sil"
-                    >
-                      <FiX />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            <div className="flex items-center gap-2">
-              <input
-                type="text"
-                placeholder="Məsələn: İş nömrəsi: +994 12 400 00 00 və ya Ofis adresi..."
-                value={newContact}
-                onChange={(e) => setNewContact(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                    if (newContact.trim()) {
-                      setForm((prev) => ({
-                        ...prev,
-                        additional_contacts: [...(prev.additional_contacts || []), newContact.trim()],
-                      }));
-                      setNewContact("");
-                    }
-                  }
-                }}
-                className="flex-1 px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-navy/15 dark:border-slate-700 text-xs text-navy dark:text-slate-100 outline-none placeholder:text-navy/40"
-              />
+              <span className="text-xs font-bold text-navy dark:text-slate-200">
+                Əlavə Əlaqə Nömrələri və Xüsusi Keçidlər
+              </span>
               <button
                 type="button"
-                onClick={() => {
-                  if (newContact.trim()) {
-                    setForm((prev) => ({
-                      ...prev,
-                      additional_contacts: [...(prev.additional_contacts || []), newContact.trim()],
-                    }));
-                    setNewContact("");
-                  }
-                }}
-                className="px-4 py-2.5 rounded-xl bg-navy dark:bg-copper hover:bg-copper text-white text-xs font-bold transition flex items-center gap-1 shrink-0 cursor-pointer"
+                onClick={handleAddCustomContact}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-copper/10 hover:bg-copper/20 text-copper text-xs font-bold transition cursor-pointer"
               >
-                <FiPlus /> Əlavə et
+                <FiPlus className="text-sm" /> Əlavə Əlaqə Əlavə Et
               </button>
             </div>
+
+            {(form.custom_contacts || []).map((contact) => (
+              <div key={contact.id} className="flex items-center gap-2">
+                <input
+                  type="text"
+                  value={contact.title}
+                  onChange={(e) => handleUpdateCustomContact(contact.id, "title", e.target.value)}
+                  placeholder="Başlıq (məs: İkinci Nömrə, Telegram)"
+                  className="w-1/3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-navy/15 dark:border-slate-700 px-3 py-2.5 text-xs outline-none text-navy dark:text-white font-semibold"
+                />
+                <input
+                  type="text"
+                  value={contact.value}
+                  onChange={(e) => handleUpdateCustomContact(contact.id, "value", e.target.value)}
+                  placeholder="Dəyər (məs: +994 55 123 45 67 və ya link)"
+                  className="flex-1 rounded-xl bg-slate-50 dark:bg-slate-800 border border-navy/15 dark:border-slate-700 px-3 py-2.5 text-xs outline-none text-navy dark:text-white"
+                />
+                <button
+                  type="button"
+                  onClick={() => handleRemoveCustomContact(contact.id)}
+                  className="p-2.5 rounded-xl text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 transition cursor-pointer"
+                  title="Sil"
+                >
+                  <FiTrash2 className="text-sm" />
+                </button>
+              </div>
+            ))}
           </div>
         </div>
 

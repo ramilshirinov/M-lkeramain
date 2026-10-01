@@ -10,7 +10,24 @@ export function AppProvider({ children }) {
   const [user, setUser] = useState(null);
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [language, setLanguage] = useState("az");
+  const [language, setLanguageState] = useState("az");
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const savedLang = localStorage.getItem("mulkera_lang");
+      if (savedLang && ["az", "ru", "en"].includes(savedLang)) {
+        setLanguageState(savedLang);
+      }
+    }
+  }, []);
+
+  const setLanguage = useCallback((newLang) => {
+    setLanguageState(newLang);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("mulkera_lang", newLang);
+      document.cookie = `mulkera_lang=${newLang}; path=/; max-age=31536000`;
+    }
+  }, []);
 
   const dict = useMemo(() => getDictionary(language), [language]);
 

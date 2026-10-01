@@ -8,12 +8,15 @@ const BAKU_CENTER = [40.4093, 49.8671];
 
 function normalize(v) {
   if (!v) return null;
-  const lat = Number(v.lat ?? v.latitude);
-  const lng = Number(v.lng ?? v.longitude);
+  const rawLat = v.lat ?? v.latitude;
+  const rawLng = v.lng ?? v.longitude;
+  if (rawLat === "" || rawLat === null || rawLat === undefined) return null;
+  if (rawLng === "" || rawLng === null || rawLng === undefined) return null;
+  const lat = Number(rawLat);
+  const lng = Number(rawLng);
   if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
-  if (lat === 0 && lng === 0) return null;
-  // Azərbaycan və Bakı ərazisi üçün təhlükəsiz koordinat yoxlanışı
-  if (lat < 35 || lat > 45 || lng < 44 || lng > 52) return null;
+  // Qvineya körfəzi / Afrika sahili (0,0 Null Island) səhvinin qarşısını alırıq
+  if (Math.abs(lat) < 0.1 && Math.abs(lng) < 0.1) return null;
   return { lat, lng };
 }
 

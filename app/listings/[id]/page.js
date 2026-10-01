@@ -94,11 +94,6 @@ export default function ListingDetailPage() {
   const [reviewSubmitting, setReviewSubmitting] = useState(false);
   const [reviewSuccessMsg, setReviewSuccessMsg] = useState("");
 
-  // Rəyə Cavab (Reply) və Bəyənmə (Like) State-ləri
-  const [replyingReviewId, setReplyingReviewId] = useState(null);
-  const [replyText, setReplyText] = useState("");
-  const [replySubmitting, setReplySubmitting] = useState(false);
-
   const loadListingReviews = async () => {
     if (!id) return;
     setReviewsLoading(true);
@@ -138,6 +133,9 @@ export default function ListingDetailPage() {
       });
       const data = await res.json();
       if (data.success) {
+        if (data.data) {
+          setReviews((prev) => [data.data, ...prev.filter((r) => r.id !== data.data.id)]);
+        }
         setNewReviewComment("");
         setReviewSuccessMsg("Rəyiniz uğurla qeydə alındı!");
         loadListingReviews();
@@ -150,56 +148,82 @@ export default function ListingDetailPage() {
     }
   };
 
+  const [replyingToId, setReplyingToId] = useState(null);
+  const [replyText, setReplyText] = useState("");
+  const [replySubmitting, setReplySubmitting] = useState(false);
+  const [likedReviews, setLikedReviews] = useState({});
+
   const handleLikeReview = async (reviewId) => {
+    setLikedReviews((prev) => ({ ...prev, [reviewId]: true }));
+    setReviews((prev) =>
+      prev.map((r) =>
+        r.id === reviewId ? { ...r, likes_count: (r.likes_count || 0) + 1 } : r
+      )
+    );
     try {
-      const res = await fetch("/api/reviews", {
+      await fetch("/api/reviews", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "like", review_id: reviewId }),
+        body: JSON.stringify({ action: "like", review_id: reviewId })
       });
-      const data = await res.json();
-      if (data.success) {
-        setReviews((prev) =>
-          prev.map((r) => (r.id === reviewId ? { ...r, likes: (r.likes || 0) + 1 } : r))
-        );
-      }
     } catch (e) {
-      console.error("Like error:", e);
+      console.error(e);
     }
   };
 
-  const handleReplySubmit = async (reviewId) => {
+  const handleSendReply = async (reviewId) => {
     if (!replyText.trim() || replySubmitting) return;
     setReplySubmitting(true);
+    const author = user?.user_metadata?.full_name || user?.full_name || user?.email?.split("@")[0] || "İstifadəçi";
+    const comment = replyText.trim();
+    setReplyText("");
+    setReplyingToId(null);
+
+    setReviews((prev) =>
+      prev.map((r) => {
+        if (r.id === reviewId) {
+          const currentReplies = Array.isArray(r.replies) ? r.replies : [];
+          return {
+            ...r,
+            replies: [
+              ...currentReplies,
+              {
+                id: `reply-${Date.now()}`,
+                author_name: author,
+                comment,
+                created_at: new Date().toISOString()
+              }
+            ]
+          };
+        }
+        return r;
+      })
+    );
+
     try {
-      const authorName = user?.user_metadata?.full_name || user?.email?.split("@")[0] || "Müştəri";
-      const res = await fetch("/api/reviews", {
+      await fetch("/api/reviews", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           action: "reply",
           review_id: reviewId,
-          reviewer_name: authorName,
-          user_id: user?.id || null,
-          comment: replyText.trim(),
-        }),
+          comment,
+          reviewer_name: author,
+          user_id: user?.id || null
+        })
       });
-      const data = await res.json();
-      if (data.success) {
-        setReplyText("");
-        setReplyingReviewId(null);
-        loadListingReviews();
-      }
     } catch (e) {
-      console.error("Reply error:", e);
+      console.error(e);
     } finally {
       setReplySubmitting(false);
     }
   };
 
   const handleReportReview = async (reviewId) => {
-    const reason = prompt("Rəyi şikayət etmə səbəbinizi qeyd edin:", "Uyğunsuz və ya təhqiramiz məzmun");
-    if (!reason) return;
+    if (!confirm("Bu rəy barədə adminə şikayət bildirmək istəyirsiniz?")) return;
+    setReviews((prev) =>
+      prev.map((r) => (r.id === reviewId ? { ...r, is_reported: true } : r))
+    );
     try {
       const res = await fetch("/api/reviews", {
         method: "POST",
@@ -207,16 +231,13 @@ export default function ListingDetailPage() {
         body: JSON.stringify({
           action: "report",
           review_id: reviewId,
-          reason,
-          user_id: user?.id || null,
-        }),
+          reason: "İstifadəçi şikayəti"
+        })
       });
       const data = await res.json();
-      if (data.success) {
-        alert("Şikayətiniz moderatorlara göndərildi. Təşəkkür edirik!");
-      }
+      alert(data.message || "Şikayətiniz qeydə alındı.");
     } catch (e) {
-      console.error("Report error:", e);
+      console.error(e);
     }
   };
 
@@ -896,7 +917,7 @@ export default function ListingDetailPage() {
                   {reviews.map((rev) => (
                     <div
                       key={rev.id}
-                      className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-navy/10 dark:border-slate-800 shadow-sm space-y-3"
+                      className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-navy/10 dark:border-slate-800 shadow-sm space-y-2"
                     >
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2.5">
@@ -931,78 +952,95 @@ export default function ListingDetailPage() {
                         {rev.comment}
                       </p>
 
-                      {/* Rəy əməliyyatları: Bəyən, Cavab ver, Bildir */}
+                      {/* Rəy Düymələri: Bəyənmə (Like), Cavab yazma (Reply), Şikayət (Report) */}
                       <div className="flex items-center gap-4 pt-1 border-t border-navy/5 dark:border-slate-800 text-[11px] font-semibold text-navy/60 dark:text-slate-400">
+                        {/* Bəyənmə Düyməsi */}
                         <button
                           type="button"
                           onClick={() => handleLikeReview(rev.id)}
-                          className="flex items-center gap-1 hover:text-copper transition cursor-pointer"
+                          className={`flex items-center gap-1 hover:text-red-500 transition ${
+                            likedReviews[rev.id] ? "text-red-500 font-bold" : ""
+                          }`}
                         >
-                          👍 Bəyən ({rev.likes || 0})
+                          <FiHeart className={`text-xs ${likedReviews[rev.id] ? "fill-red-500" : ""}`} />
+                          <span>{rev.likes_count || 0} Bəyənmə</span>
                         </button>
+
+                        {/* Cavab Yazma Düyməsi */}
                         <button
                           type="button"
-                          onClick={() => setReplyingReviewId(replyingReviewId === rev.id ? null : rev.id)}
+                          onClick={() => setReplyingToId(replyingToId === rev.id ? null : rev.id)}
                           className="flex items-center gap-1 hover:text-copper transition cursor-pointer"
                         >
-                          💬 Cavab ver
+                          <FiMessageSquare className="text-xs" />
+                          <span>Cavab yaz</span>
                         </button>
+
+                        {/* Şikayət Düyməsi */}
                         <button
                           type="button"
                           onClick={() => handleReportReview(rev.id)}
-                          className="flex items-center gap-1 hover:text-red-500 transition cursor-pointer ml-auto"
+                          className={`flex items-center gap-1 hover:text-amber-600 transition ml-auto ${
+                            rev.is_reported ? "text-amber-600 font-bold" : ""
+                          }`}
+                          title="Uyğunsuz rəyi bildir"
                         >
-                          🚩 Bildir (Şikayət)
+                          <FiFlag className="text-xs" />
+                          <span>{rev.is_reported ? "Şikayət olunub" : "Şikayət et"}</span>
                         </button>
                       </div>
 
-                      {/* Cavab Formu */}
-                      {replyingReviewId === rev.id && (
-                        <div className="mt-2 pl-4 border-l-2 border-copper space-y-2">
+                      {/* Mövcud Cavablar (Threaded Replies) */}
+                      {Array.isArray(rev.replies) && rev.replies.length > 0 && (
+                        <div className="pl-4 border-l-2 border-copper/30 space-y-2 mt-2 pt-2">
+                          {rev.replies.map((rep) => (
+                            <div key={rep.id} className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 text-xs space-y-1">
+                              <div className="flex items-center justify-between">
+                                <span className="font-bold text-copper text-[11px]">
+                                  ↪ {rep.author_name || "İstifadəçi"}
+                                </span>
+                                <span className="text-[10px] text-navy/40 dark:text-slate-500">
+                                  {rep.created_at ? new Date(rep.created_at).toLocaleDateString("az-AZ") : "Bu gün"}
+                                </span>
+                              </div>
+                              <p className="text-navy/70 dark:text-slate-300 text-[11px] leading-relaxed">
+                                {rep.comment}
+                              </p>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* İnline Cavab Yazma Formu */}
+                      {replyingToId === rev.id && (
+                        <div className="mt-2 pt-2 border-t border-navy/10 dark:border-slate-800 space-y-2">
                           <textarea
                             rows={2}
-                            placeholder="Bu rəyə cavabınızı yazın..."
                             value={replyText}
                             onChange={(e) => setReplyText(e.target.value)}
-                            className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-navy/10 dark:border-slate-700 text-xs text-navy dark:text-slate-100 outline-none resize-none"
+                            placeholder={`${rev.author_name || "İstifadəçiyə"} cavabınız...`}
+                            className="w-full p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-navy/15 dark:border-slate-700 text-xs outline-none text-navy dark:text-white placeholder:text-navy/40 resize-none"
                           />
-                          <div className="flex justify-end gap-2">
+                          <div className="flex items-center justify-end gap-2">
                             <button
                               type="button"
                               onClick={() => {
-                                setReplyingReviewId(null);
+                                setReplyingToId(null);
                                 setReplyText("");
                               }}
-                              className="px-3 py-1 rounded-lg text-xs font-semibold text-navy/60 dark:text-slate-400 cursor-pointer"
+                              className="px-3 py-1 rounded-lg text-xs font-medium text-navy/60 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition"
                             >
                               Ləğv et
                             </button>
                             <button
                               type="button"
+                              onClick={() => handleSendReply(rev.id)}
                               disabled={replySubmitting || !replyText.trim()}
-                              onClick={() => handleReplySubmit(rev.id)}
-                              className="px-3.5 py-1 rounded-lg bg-copper text-white text-xs font-bold transition shadow-xs disabled:opacity-50 cursor-pointer"
+                              className="px-3 py-1 rounded-lg bg-copper hover:bg-amber-600 text-white text-xs font-bold transition shadow-xs disabled:opacity-50"
                             >
-                              {replySubmitting ? "Göndərilir..." : "Cavabı Göndər"}
+                              {replySubmitting ? "Göndərilir..." : "Cavabı göndər"}
                             </button>
                           </div>
-                        </div>
-                      )}
-
-                      {/* Rəyə Cavablar (Nested Replies) */}
-                      {rev.replies && rev.replies.length > 0 && (
-                        <div className="mt-3 pl-4 border-l-2 border-navy/10 dark:border-slate-800 space-y-2">
-                          {rev.replies.map((rep) => (
-                            <div key={rep.id} className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 text-xs space-y-1">
-                              <div className="flex items-center justify-between font-bold text-navy dark:text-white">
-                                <span>↳ {rep.author_name || rep.reviewer_name || "Müştəri"}</span>
-                                <span className="text-[10px] text-navy/40 dark:text-slate-500 font-normal">
-                                  {rep.created_at ? new Date(rep.created_at).toLocaleDateString("az-AZ") : "Bu gün"}
-                                </span>
-                              </div>
-                              <p className="text-navy/70 dark:text-slate-300 font-normal">{rep.comment}</p>
-                            </div>
-                          ))}
                         </div>
                       )}
                     </div>

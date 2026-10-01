@@ -30,41 +30,42 @@ export default function HomePage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
 
+  // Kateqoriya uyğunluq xəritəsi (həm DB id-ləri, həm də slug-lar)
+  const CATEGORY_MAP = {
+    "all": [],
+    "new-building": ["1", 1, "yeni-tikili", "new-building", "yeni tikili", "menziller", "mənzil"],
+    "old-building": ["2", 2, "kohne-tikili", "old-building", "köhnə tikili", "kohne tikili"],
+    "house-cottage": ["3", 3, "4", 4, "heyet-evi", "bag-evi", "house-cottage", "həyət evi", "bağ evi", "villa", "evler"],
+    "office": ["5", 5, "6", 6, "ofis", "office", "ofisler", "obyekt", "commercial"],
+  };
+
   useEffect(() => {
     let cancelled = false;
 
-    const fetchListings = async () => {
+    const fetchHomeListings = async () => {
       setLoading(true);
       try {
-        // 1. Daxili API vasitəsilə kateqoriya filtri
-        const param = selectedCategory !== "all" ? `?category=${selectedCategory}` : "";
-        const res = await fetch(`/api/listings${param}`, { cache: "no-store" });
-        if (res.ok) {
-          const json = await res.json();
-          if (!cancelled && Array.isArray(json.data)) {
-            setListings(json.data.slice(0, 6));
-            setLoading(false);
-            return;
-          }
+        const res = await fetch("/api/listings", { cache: "no-store" });
+        const json = await res.json();
+        let list = json.data || [];
+
+        if (selectedCategory !== "all") {
+          const matchers = CATEGORY_MAP[selectedCategory] || [];
+          list = list.filter((l) => {
+            const catId = l.category_id;
+            const slug = l.categories?.slug || l.category_slug;
+            const name = (l.categories?.name_az || l.categories?.name || l.property_type || l.title_az || "").toLowerCase();
+            return matchers.some(
+              (m) =>
+                String(m) === String(catId) ||
+                m === slug ||
+                (typeof m === "string" && name.includes(m.toLowerCase()))
+            );
+          });
         }
 
-        // 2. Supabase birbaşa sorğusu
-        if (supabase) {
-          let query = supabase
-            .from("listings")
-            .select(selectedCategory === "all" ? SELECT_ALL : SELECT_BY_CATEGORY)
-            .order("is_vip", { ascending: false })
-            .order("created_at", { ascending: false })
-            .limit(6);
-
-          if (selectedCategory !== "all") {
-            query = query.or(`categories.slug.eq.${selectedCategory},category.ilike.%${selectedCategory}%`);
-          }
-
-          const { data, error } = await query;
-          if (!cancelled) {
-            if (!error && data) setListings(data);
-          }
+        if (!cancelled) {
+          setListings(list.slice(0, 6));
         }
       } catch (err) {
         console.error("Elanlar yüklənmədi:", err);
@@ -73,11 +74,11 @@ export default function HomePage() {
       }
     };
 
-    fetchListings();
+    fetchHomeListings();
     return () => {
       cancelled = true;
     };
-  }, [supabase, selectedCategory]);
+  }, [selectedCategory]);
 
   const goSearch = (customQuery) => {
     const q = customQuery !== undefined ? customQuery : searchQuery;
@@ -127,10 +128,7 @@ export default function HomePage() {
           <h2 className="text-2xl sm:text-3xl font-extrabold font-heading text-[#111827] dark:text-white">
             {dict.home?.featured || "Seçilmiş elanlar"}
           </h2>
-          <Link
-            href={`/listings${selectedCategory !== "all" ? `?category=${selectedCategory}` : ""}`}
-            className="text-copper font-semibold text-sm hover:underline"
-          >
+          <Link href="/listings" className="text-copper font-semibold text-sm hover:underline">
             {dict.home?.viewAll || "Hamısına bax"} &rarr;
           </Link>
         </div>

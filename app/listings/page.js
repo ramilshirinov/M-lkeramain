@@ -115,7 +115,11 @@ function ListingsContent() {
 
           if (txType !== "all") {
             if (txType === "rent") {
-              query = query.neq("transaction_type", "sale");
+              query = query.in("transaction_type", ["rent", "long_term_rent"]);
+            } else if (txType === "daily") {
+              query = query.in("transaction_type", ["daily", "daily_rent"]);
+            } else if (txType === "other") {
+              query = query.in("transaction_type", ["other", "diger", "digər", "exchange", "barter"]);
             } else {
               query = query.eq("transaction_type", txType);
             }
@@ -364,7 +368,7 @@ function ListingsContent() {
                 onChange={(e) => setTxType(e.target.value)}
                 className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-navy/15 dark:border-slate-700 text-xs text-navy dark:text-slate-100 outline-none font-semibold cursor-pointer"
               >
-                <option value="all">Hamısı (Satış və Kirayə)</option>
+                <option value="all">Hamısı (Satış, Kirayə, Digər)</option>
                 <option value="sale">Satış</option>
                 <option value="rent">Kirayə</option>
                 <option value="daily">Günlük</option>

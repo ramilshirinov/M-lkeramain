@@ -23,12 +23,15 @@ export default function HeroSection({ searchQuery, setSearchQuery, onSearch }) {
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
-          src="/images/sumqayit-real-skyline.jpg"
-          alt="Sumqayıt Panoraması"
+          src="/images/open-s1.jpg"
+          alt="Mülkera Panorama Fonu"
           className="w-full h-full object-cover object-[center_35%]"
+          onError={(e) => {
+            e.currentTarget.src = "/images/sumqayit-real-skyline.jpg";
+          }}
         />
         {/* Tünd zərif örtük - Başlıq və axtarış blokunun kontrastını və oxunaqlığını təmin edir */}
-        <div className="absolute inset-0 bg-slate-950/65" />
+        <div className="absolute inset-0 bg-slate-950/65 backdrop-blur-[0.5px]" />
       </div>
 
       <div className="relative max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col items-center text-center space-y-6 z-10">

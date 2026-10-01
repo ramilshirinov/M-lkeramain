@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { useApp } from "@/context/AppContext";
 import { languages } from "@/lib/i18n";
+import Logo from "@/components/Logo";
 import ThemeToggle from "@/components/ThemeToggle";
 import {
   FiHeart,
@@ -17,17 +18,17 @@ import {
   FiCpu,
   FiZap,
   FiX,
-  FiCheckCircle,
   FiMenu,
+  FiCheckCircle,
 } from "react-icons/fi";
 
 export default function Navbar() {
   const { user, language, setLanguage, dict: rawDict } = useApp();
   const dict = rawDict || {};
   const [isOpenLang, setIsOpenLang] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isAiModalOpen, setIsAiModalOpen] = useState(false);
   const [isSatelliteModalOpen, setIsSatelliteModalOpen] = useState(false);
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [notified, setNotified] = useState(false);
   const [satelliteNotified, setSatelliteNotified] = useState(false);
 
@@ -37,31 +38,42 @@ export default function Navbar() {
     <header className="sticky top-0 z-50 bg-white dark:bg-slate-900 text-navy dark:text-slate-100 border-b border-navy/10 dark:border-slate-800 shadow-sm">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
         {/* Logo və mətnlər */}
-        <Link href="/" className="flex items-center gap-3 group">
-          <div className="w-11 h-11 shrink-0 flex items-center justify-center">
+        <Link href="/" className="flex items-center gap-2.5 sm:gap-3 group shrink-0">
+          <div className="w-10 h-10 sm:w-11 sm:h-11 shrink-0 flex items-center justify-center">
+            {/* Gündüz üçün tünd loqo, Gecə üçün ağ loqo (tam aydın görünməsi üçün) */}
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src="/images/logo-icon.png"
               alt="MÜLKERA Logo"
-              className="w-full h-full object-contain"
+              className="w-full h-full object-contain dark:hidden"
+            />
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/images/logo-icon-white.png"
+              alt="MÜLKERA Logo"
+              className="w-full h-full object-contain hidden dark:block filter drop-shadow-[0_2px_8px_rgba(255,255,255,0.25)]"
+              onError={(e) => {
+                e.currentTarget.src = "/images/logo-icon.png";
+                e.currentTarget.className = "w-full h-full object-contain filter invert contrast-200";
+              }}
             />
           </div>
-          <div className="flex flex-col">
-            <div className="text-xl font-bold tracking-wider font-heading leading-none flex items-center">
+          <div className="flex flex-col min-w-0">
+            <div className="text-lg sm:text-xl font-bold tracking-wider font-heading leading-none flex items-center">
               <span className="text-navy dark:text-white">MÜLK</span>
               <span className="text-copper">ERA</span>
             </div>
-            <span className="text-[9px] font-bold tracking-widest text-navy/80 dark:text-slate-300 uppercase mt-0.5">
+            <span className="text-[8px] sm:text-[9px] font-bold tracking-widest text-navy/80 dark:text-slate-300 uppercase mt-0.5 truncate">
               ƏMLAK SATIŞI AGENTLİYİ
             </span>
-            <span className="text-[10px] text-navy/60 dark:text-slate-400 font-medium tracking-tight">
+            <span className="text-[9px] sm:text-[10px] text-navy/60 dark:text-slate-400 font-medium tracking-tight hidden sm:inline truncate">
               Sizin eranız, sizin mülkünüz.
             </span>
           </div>
         </Link>
 
-        {/* Naviqasiya */}
-        <nav className="hidden md:flex items-center gap-6 font-medium text-sm">
+        {/* Naviqasiya (Desktop) */}
+        <nav className="hidden md:flex items-center gap-5 lg:gap-6 font-medium text-sm">
           <Link href="/listings" className={linkClass}>
             {dict.nav?.listings || "Elanlar"}
           </Link>
@@ -74,15 +86,15 @@ export default function Navbar() {
             <FiAward className="text-copper" /> Rieltorlar
           </Link>
 
-          {/* Canlı Yayım & Rieltor PK (Kvadrat Çərçivə - Mavi & Mərkəzlənmiş) */}
+          {/* Canlı Yayım & Rieltor PK (Yumru nöqtəsiz, mərkəzdən iri yazılış, cəlbedici mavi rəng) */}
           <div className="relative group">
             <button
               type="button"
               onClick={() => setIsSatelliteModalOpen(true)}
-              className="flex items-center justify-center gap-2 px-3.5 py-1.5 rounded-xl bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300 font-bold text-sm hover:bg-blue-100 hover:border-blue-300 transition-all shadow-xs cursor-pointer"
+              className="flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-95 text-white font-bold transition-all shadow-md shadow-blue-500/20 border border-blue-400/40 cursor-pointer"
             >
-              <span className="tracking-tight font-extrabold text-[13px]">Canlı</span>
-              <span className="text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded-full bg-blue-600 text-white shadow-xs">
+              <span className="text-sm font-extrabold tracking-wide text-center">Canlı</span>
+              <span className="text-[9.5px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded-md bg-white/20 text-white backdrop-blur-xs">
                 Tezliklə
               </span>
             </button>
@@ -219,96 +231,146 @@ export default function Navbar() {
             </div>
           )}
 
-          {/* Mobil Menyu Düyməsi (Hamburger) */}
+          {/* Mobil Menyu Aç/Bağla Düyməsi */}
           <button
             type="button"
-            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-            className="md:hidden p-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-navy dark:text-slate-100 hover:text-copper transition cursor-pointer"
-            aria-label="Mobil Menyu"
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            className="md:hidden p-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-navy dark:text-white hover:bg-slate-200 dark:hover:bg-slate-700 transition cursor-pointer"
+            aria-label="Menyu"
           >
-            {isMobileMenuOpen ? <FiX className="text-xl" /> : <FiMenu className="text-xl" />}
+            {mobileMenuOpen ? <FiX className="text-xl" /> : <FiMenu className="text-xl" />}
           </button>
         </div>
       </div>
 
-      {/* Mobil Menyu Çəkməcəsi (Drawer) */}
-      {isMobileMenuOpen && (
-        <div className="md:hidden bg-white dark:bg-slate-900 border-b border-navy/10 dark:border-slate-800 px-4 py-5 space-y-4 shadow-xl">
-          <div className="flex flex-col space-y-3 font-semibold text-sm">
+      {/* ========================================================================= */}
+      {/* MOBİL MENYU DRAWER (Bütün bölmələr telefonda aydın və tam görünür)        */}
+      {/* ========================================================================= */}
+      {mobileMenuOpen && (
+        <div className="md:hidden bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-4 pt-3 pb-6 shadow-xl animate-in slide-in-from-top duration-200">
+          <div className="flex flex-col space-y-2">
             <Link
               href="/listings"
-              onClick={() => setIsMobileMenuOpen(false)}
-              className="px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 text-navy dark:text-slate-100 hover:text-copper transition"
+              onClick={() => setMobileMenuOpen(false)}
+              className="flex items-center gap-3 p-3 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-sm font-semibold text-navy dark:text-white transition"
             >
-              🏠 {dict.nav?.listings || "Elanlar"}
+              <span>🏠</span> {dict.nav?.listings || "Elanlar"}
             </Link>
 
             <Link
               href="/map"
-              onClick={() => setIsMobileMenuOpen(false)}
-              className="px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 text-navy dark:text-slate-100 hover:text-copper transition flex items-center gap-2"
+              onClick={() => setMobileMenuOpen(false)}
+              className="flex items-center gap-3 p-3 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-sm font-semibold text-navy dark:text-white transition"
             >
-              <FiMapPin className="text-copper" /> Xəritə Axtarışı
+              <FiMapPin className="text-copper text-lg" /> Xəritə Axtarışı
             </Link>
 
             <Link
               href="/realtors"
-              onClick={() => setIsMobileMenuOpen(false)}
-              className="px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 text-navy dark:text-slate-100 hover:text-copper transition flex items-center gap-2"
+              onClick={() => setMobileMenuOpen(false)}
+              className="flex items-center gap-3 p-3 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-sm font-semibold text-navy dark:text-white transition"
             >
-              <FiAward className="text-copper" /> Rieltorlar
+              <FiAward className="text-copper text-lg" /> Rieltorlar
             </Link>
+
+            {/* Canlı Yayım Düyməsi (Mobil) */}
+            <button
+              type="button"
+              onClick={() => {
+                setMobileMenuOpen(false);
+                setIsSatelliteModalOpen(true);
+              }}
+              className="flex items-center justify-between p-3 rounded-xl bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300 font-bold text-sm transition"
+            >
+              <div className="flex items-center gap-3">
+                <span className="w-2.5 h-2.5 rounded-full bg-blue-600 animate-ping inline-block" />
+                <span>Canlı Əmlak Yayımı & PK</span>
+              </div>
+              <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-blue-600 text-white">
+                Tezliklə
+              </span>
+            </button>
+
+            {/* AI Rieltor Düyməsi (Mobil) */}
+            <button
+              type="button"
+              onClick={() => {
+                setMobileMenuOpen(false);
+                setIsAiModalOpen(true);
+              }}
+              className="flex items-center justify-between p-3 rounded-xl bg-orange-50 dark:bg-orange-950/40 border border-orange-200 dark:border-orange-800 text-orange-700 dark:text-orange-300 font-bold text-sm transition"
+            >
+              <div className="flex items-center gap-3">
+                <FiCpu className="text-orange-500 text-lg" />
+                <span>AI Rieltor</span>
+              </div>
+              <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-orange-600 text-white">
+                Tezliklə
+              </span>
+            </button>
 
             <Link
               href="/favorites"
-              onClick={() => setIsMobileMenuOpen(false)}
-              className="px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 text-navy dark:text-slate-100 hover:text-copper transition flex items-center gap-2"
+              onClick={() => setMobileMenuOpen(false)}
+              className="flex items-center gap-3 p-3 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-sm font-semibold text-navy dark:text-white transition"
             >
-              <FiHeart className="text-copper" /> {dict.nav?.favorites || "Favoritlər"}
+              <FiHeart className="text-copper text-lg" /> {dict.nav?.favorites || "Favoritlər"}
             </Link>
 
             <Link
               href="/messages"
-              onClick={() => setIsMobileMenuOpen(false)}
-              className="px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 text-navy dark:text-slate-100 hover:text-copper transition flex items-center gap-2"
+              onClick={() => setMobileMenuOpen(false)}
+              className="flex items-center gap-3 p-3 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-sm font-semibold text-navy dark:text-white transition"
             >
-              <FiMessageSquare className="text-copper" /> Mesajlar
+              <FiMessageSquare className="text-copper text-lg" /> Mesajlar
             </Link>
 
-            {user ? (
+            {(user?.role === "admin" || user?.user_metadata?.role === "admin" || user?.email?.includes("admin")) && (
               <Link
-                href="/profile"
-                onClick={() => setIsMobileMenuOpen(false)}
-                className="px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 text-navy dark:text-slate-100 hover:text-copper transition flex items-center gap-2"
+                href="/admin"
+                onClick={() => setMobileMenuOpen(false)}
+                className="flex items-center gap-3 p-3 rounded-xl bg-amber-50 dark:bg-amber-950/30 text-copper font-bold text-sm border border-amber-200 dark:border-amber-800 transition"
               >
-                <FiUser className="text-copper" /> Profilim
+                <FiShield className="text-lg" /> Admin Paneli
               </Link>
-            ) : (
-              <div className="flex gap-2 pt-2">
-                <Link
-                  href="/login"
-                  onClick={() => setIsMobileMenuOpen(false)}
-                  className="flex-1 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-navy dark:text-slate-100 text-center font-bold"
-                >
-                  Daxil ol
-                </Link>
-                <Link
-                  href="/register"
-                  onClick={() => setIsMobileMenuOpen(false)}
-                  className="flex-1 py-2.5 rounded-xl bg-copper text-white text-center font-bold"
-                >
-                  Qeydiyyat
-                </Link>
-              </div>
             )}
 
-            <Link
-              href="/listings/add"
-              onClick={() => setIsMobileMenuOpen(false)}
-              className="w-full py-3 rounded-xl bg-navy dark:bg-copper text-white text-center font-bold flex items-center justify-center gap-2 shadow-sm"
-            >
-              <FiPlusCircle /> {dict.nav?.addListing || "Elan Yerləşdir"}
-            </Link>
+            <div className="pt-2 border-t border-slate-200 dark:border-slate-800 flex flex-col gap-2">
+              <Link
+                href="/listings/add"
+                onClick={() => setMobileMenuOpen(false)}
+                className="flex items-center justify-center gap-2 p-3 rounded-xl bg-navy dark:bg-copper text-white text-sm font-bold shadow-md transition"
+              >
+                <FiPlusCircle /> {dict.nav?.addListing || "Elan Yerləşdir"}
+              </Link>
+
+              {user ? (
+                <Link
+                  href="/profile"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="flex items-center justify-center gap-2 p-3 rounded-xl bg-slate-100 dark:bg-slate-800 text-navy dark:text-white text-sm font-semibold transition"
+                >
+                  <FiUser className="text-copper" /> Profilim ({user.full_name || user.email})
+                </Link>
+              ) : (
+                <div className="grid grid-cols-2 gap-2 pt-1">
+                  <Link
+                    href="/login"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="text-center py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 text-sm font-semibold text-navy dark:text-white"
+                  >
+                    {dict.nav?.login || "Daxil ol"}
+                  </Link>
+                  <Link
+                    href="/register"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="text-center py-2.5 rounded-xl bg-gold-400 text-navy text-sm font-bold"
+                  >
+                    {dict.nav?.register || "Qeydiyyat"}
+                  </Link>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}

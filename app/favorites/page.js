@@ -37,21 +37,28 @@ export default function FavoritesPage() {
     setLoading(true);
 
     try {
-      // 1. Əgər istifadəçi daxil olubsa, API endpoint vasitəsilə favoritləri gətiririk
-      if (user?.id) {
-        const res = await fetch(`/api/favorites?userId=${user.id}`, { cache: "no-store" });
-        if (res.ok) {
-          const json = await res.json();
-          if (json.data && json.data.length > 0) {
-            setFavorites(json.data);
-            setLoading(false);
-            return;
-          }
-        }
+      let localIds = [];
+      try {
+        const raw = localStorage.getItem("mulkera_favorites");
+        localIds = raw ? JSON.parse(raw) : [];
+      } catch (e) {}
+
+      // 1. API vasitəsilə favoritləri gətiririk (həm user favoritləri, həm də localIds)
+      const params = new URLSearchParams();
+      if (user?.id) params.set("userId", user.id);
+      if (localIds.length > 0) params.set("ids", localIds.join(","));
+
+      const res = await fetch(`/api/favorites?${params.toString()}`, { cache: "no-store" });
+      const json = await res.json();
+
+      if (json.success && Array.isArray(json.data) && json.data.length > 0) {
+        setFavorites(json.data);
+        setLoading(false);
+        return;
       }
 
-      // 2. Birbaşa Supabase sorğusu ilə
-      if (user?.id && supabase) {
+      // 2. Supabase fallback
+      if (user?.id && supabase && typeof supabase.from === "function") {
         const { data, error } = await supabase
           .from("favorites")
           .select("id, listing_id, listings(*, listing_photos(*), categories(*), districts(*))")
@@ -62,27 +69,6 @@ export default function FavoritesPage() {
           setFavorites(formatted);
           setLoading(false);
           return;
-        }
-      }
-
-      // 3. Fallback: LocalStorage-dən saxlanılan favorit ID-ləri
-      let localIds = [];
-      try {
-        const raw = localStorage.getItem("mulkera_favorites");
-        localIds = raw ? JSON.parse(raw) : [];
-      } catch (e) {}
-
-      if (localIds.length > 0) {
-        const res = await fetch("/api/listings", { cache: "no-store" });
-        if (res.ok) {
-          const json = await res.json();
-          const allList = json.data || [];
-          const filtered = allList.filter((item) => localIds.includes(String(item.id)));
-          if (filtered.length > 0) {
-            setFavorites(filtered);
-            setLoading(false);
-            return;
-          }
         }
       }
 
