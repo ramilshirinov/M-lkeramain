@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getSupabaseAdminClient, isSupabaseConfigured } from "@/lib/supabaseServer";
+import { getSupabaseAdminClient, isSupabaseConfigured } from "@/lib/supabase/admin";
 import { endLiveKitRoom } from "@/lib/livekit";
 
 /**

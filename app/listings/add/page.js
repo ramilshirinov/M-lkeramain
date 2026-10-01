@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useApp } from "@/context/AppContext";
 import {
@@ -9,9 +9,10 @@ import {
   createListing,
   localizedField,
 } from "@/lib/listings";
+import { normalizeAzPhone } from "@/lib/phone";
 import { AZERBAIJAN_REGIONS } from "@/constants/locations";
 import MediaUploader from "@/components/MediaUploader";
-import { FiPlusCircle, FiCheckCircle, FiHome, FiDollarSign, FiMapPin, FiLayers } from "react-icons/fi";
+import { FiPlusCircle, FiCheckCircle, FiHome, FiDollarSign, FiMapPin, FiLayers, FiUserCheck } from "react-icons/fi";
 import dynamic from "next/dynamic";
 
 const LocationPicker = dynamic(() => import("@/components/LocationPicker"), { ssr: false });
@@ -21,6 +22,7 @@ const INITIAL_FORM = {
   description_az: "",
   category_id: "",
   transaction_type: "sale",
+  owner_kind: "",
   price: "",
   currency: "AZN",
   room_count: "",
@@ -48,9 +50,11 @@ const DOC_OPTIONS = [
   "Digər",
 ];
 
+const KINDS = ["owner", "realtor", "other"];
+
 export default function AddListingPage() {
   const router = useRouter();
-  const { user, profile, loadingAuth, locale, supabase } = useApp();
+  const { user, profile, loadingAuth, locale, supabase, t } = useApp();
 
   const [form, setForm] = useState(INITIAL_FORM);
   const [categories, setCategories] = useState([]);
@@ -59,8 +63,17 @@ export default function AddListingPage() {
   const [videoFiles, setVideoFiles] = useState([]);
 
   const [errors, setErrors] = useState({});
+  const [formError, setFormError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [uploadsBusy, setUploadsBusy] = useState(false);
   const [success, setSuccess] = useState(false);
+
+  const requestIdRef = useRef(null);
+  const submittingRef = useRef(false);
+
+  useEffect(() => {
+    requestIdRef.current = crypto.randomUUID();
+  }, []);
 
   const activeRegion = AZERBAIJAN_REGIONS.find((r) => r.id === form.selected_city) || AZERBAIJAN_REGIONS[0];
   const currentDistricts = activeRegion?.districts || [];
@@ -76,7 +89,21 @@ export default function AddListingPage() {
     }
   }, [loadingAuth, user, router]);
 
-  const update = (key, value) => setForm((f) => ({ ...f, [key]: value }));
+  // Pre-fill phone and suggested owner_kind from profile
+  useEffect(() => {
+    if (profile) {
+      setForm((prev) => ({
+        ...prev,
+        phone_number: prev.phone_number || profile.phone || "",
+        owner_kind: prev.owner_kind || (profile.role === "realtor" ? "realtor" : ""),
+      }));
+    }
+  }, [profile]);
+
+  const update = (key, value) => {
+    setForm((f) => ({ ...f, [key]: value }));
+    setErrors((e) => ({ ...e, [key]: false }));
+  };
 
   const toggleDocument = (doc) => {
     setForm((f) => ({
@@ -89,71 +116,103 @@ export default function AddListingPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (submittingRef.current || uploadsBusy) return;
+
     setErrors({});
+    setFormError("");
 
     const fieldErrors = {};
-    if (!form.title_az) fieldErrors.title_az = true;
-    if (!form.description_az) fieldErrors.description_az = true;
+    if (!form.title_az?.trim()) fieldErrors.title_az = true;
+    if (!form.description_az?.trim()) fieldErrors.description_az = true;
     if (!form.category_id) fieldErrors.category_id = true;
     if (!form.selected_city) fieldErrors.selected_city = true;
     if (!form.price || Number(form.price) <= 0) fieldErrors.price = true;
     if (!form.area_m2 || Number(form.area_m2) <= 0) fieldErrors.area_m2 = true;
-    if (!form.address) fieldErrors.address = true;
-    if (!form.phone_number) fieldErrors.phone_number = true;
-    if (imageFiles.length === 0) fieldErrors.images = true;
+    if (!form.address?.trim()) fieldErrors.address = true;
+
+    // Phone validation
+    const normalizedPhone = normalizeAzPhone(form.phone_number);
+    if (!normalizedPhone) {
+      fieldErrors.phone_number = true;
+    }
+
+    // Owner kind validation
+    if (!form.owner_kind || !KINDS.includes(form.owner_kind)) {
+      fieldErrors.owner_kind = true;
+    }
+
+    // Coordinates validation (prevent Baku default stacking)
+    if (!form.latitude || !form.longitude) {
+      fieldErrors.location = true;
+    }
+
+    // Images validation
+    if (imageFiles.length === 0) {
+      fieldErrors.images = true;
+    }
 
     if (Object.keys(fieldErrors).length > 0) {
       setErrors(fieldErrors);
+      setFormError(
+        t?.errors?.generic || "Zəhmət olmasa qırmızı ilə işarələnmiş məcburi xanaları doldurun."
+      );
       window.scrollTo({ top: 0, behavior: "smooth" });
       return;
     }
 
+    submittingRef.current = true;
     setSubmitting(true);
+
     try {
       const cityName = activeRegion?.name || "Bakı";
-      const fullAddress = `${cityName}${form.district_name ? ", " + form.district_name : ""}, ${form.address}`;
+      const fullAddress = `${cityName}${form.district_name ? ", " + form.district_name : ""}, ${form.address.trim()}`;
 
-      const payload = {
-        owner_id: user.id,
-        owner_type: profile?.role === "realtor" ? "agency" : "owner",
-        title_az: form.title_az,
-        title_ru: null,
-        title_en: null,
-        description_az: form.description_az,
-        description_ru: null,
-        description_en: null,
-        category_id: form.category_id === "other" ? null : Number(form.category_id),
-        district_id: form.district_id ? Number(form.district_id) : (dbDistricts[0]?.id || null),
-        transaction_type: form.transaction_type,
-        price: Number(form.price),
-        currency: form.currency,
-        room_count: form.room_count ? Number(form.room_count) : null,
-        area_m2: Number(form.area_m2),
-        yard_sot: form.yard_sot ? Number(form.yard_sot) : null,
-        floor_number: form.floor_number ? Number(form.floor_number) : null,
-        total_floors: form.total_floors ? Number(form.total_floors) : null,
+      const listingPayload = {
+        title: form.title_az.trim(),
+        title_az: form.title_az.trim(),
+        description: form.description_az.trim(),
+        description_az: form.description_az.trim(),
+        transaction_type: form.transaction_type || "sale",
+        category_id: form.category_id === "other" ? null : form.category_id,
+        district_id: form.district_id || (dbDistricts[0]?.id || null),
+        city: cityName,
         address: fullAddress,
-        latitude: form.latitude ? Number(form.latitude) : null,
-        longitude: form.longitude ? Number(form.longitude) : null,
+        latitude: form.latitude ? String(form.latitude) : null,
+        longitude: form.longitude ? String(form.longitude) : null,
+        price: String(form.price),
+        currency: form.currency || "AZN",
+        area_m2: String(form.area_m2),
+        room_count: form.room_count ? String(form.room_count) : null,
+        floor: form.floor_number ? String(form.floor_number) : null,
+        floor_total: form.total_floors ? String(form.total_floors) : null,
+        yard_sot: form.yard_sot ? String(form.yard_sot) : null,
+        phone_number: normalizedPhone.e164,
         documents: form.documents,
-        phone_number: form.phone_number,
-        status: "active",
+        owner_kind: form.owner_kind,
       };
 
+      const media = [
+        ...imageFiles.map((f) => ({ url: f.url || f, type: "image" })),
+        ...videoFiles.map((f) => ({ url: f.url || f, type: "video" })),
+      ];
+
       await createListing(supabase, {
-        payload,
-        photoUrls: imageFiles.map((f) => f.url || f),
-        videoUrls: videoFiles.map((f) => f.url || f),
+        requestId: requestIdRef.current,
+        listing: listingPayload,
+        media,
       });
 
       setSuccess(true);
-      setTimeout(() => router.push("/listings"), 1500);
+      setTimeout(() => router.push("/listings"), 1200);
     } catch (err) {
-      console.error(err);
-      if (err.fieldErrors) setErrors(err.fieldErrors);
-      alert("Xəta baş verdi: " + (err.message || "Naməlum xəta"));
-    } finally {
+      console.error("Listing creation error:", err);
+      submittingRef.current = false;
       setSubmitting(false);
+      const code = err.code || err.message;
+      const localizedMsg =
+        t?.errors?.[code] || err.message || t?.errors?.generic || "Elan əlavə edilərkən xəta baş verdi.";
+      setFormError(localizedMsg);
+      window.scrollTo({ top: 0, behavior: "smooth" });
     }
   };
 
@@ -162,11 +221,17 @@ export default function AddListingPage() {
   }
 
   return (
-    <div className="mx-auto max-w-3xl px-4 py-10 sm:px-6 lg:px-8 text-navy dark:text-slate-100">
+    <div className="mx-auto max-w-3xl px-4 py-10 sm:px-6 lg:px-8 text-navy dark:text-slate-100 pb-[calc(4rem+env(safe-area-inset-bottom))] sm:pb-10">
       <h1 className="mb-2 flex items-center gap-2 text-3xl font-bold font-heading text-navy dark:text-white">
         <FiPlusCircle className="text-copper" /> Yeni Elan Yerləşdir
       </h1>
       <p className="mb-8 text-sm text-navy/65 dark:text-slate-400">Zəhmət olmasa tələb olunan sahələri doldurun.</p>
+
+      {formError && (
+        <div className="mb-6 rounded-xl bg-red-50 dark:bg-red-950/40 p-4 text-sm font-medium text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800">
+          {formError}
+        </div>
+      )}
 
       {success && (
         <div className="mb-6 flex items-center gap-2 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 p-4 text-sm font-medium text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800">
@@ -175,6 +240,39 @@ export default function AddListingPage() {
       )}
 
       <form onSubmit={handleSubmit} className="space-y-8">
+        {/* Elan Sahibi Seçimi (Step 12.2) */}
+        <section className="p-6 sm:p-8 bg-white dark:bg-slate-900 rounded-2xl shadow-card border border-navy/10 dark:border-slate-800 space-y-4 transition-colors">
+          <h2 className="text-lg font-bold text-navy dark:text-white border-b border-navy/10 dark:border-slate-800 pb-3 flex items-center gap-2">
+            <FiUserCheck className="text-copper" /> {t?.addListing?.ownerKind || "Elan sahibi"} *
+          </h2>
+          {errors.owner_kind && (
+            <p className="text-xs text-red-500 font-semibold">{t?.errors?.owner_kind_required || "Elan sahibi növünü seçin."}</p>
+          )}
+          <fieldset className="grid grid-cols-3 gap-3">
+            <legend className="sr-only">{t?.addListing?.ownerKind || "Elan sahibi"}</legend>
+            {KINDS.map((k) => (
+              <label
+                key={k}
+                className={`cursor-pointer rounded-xl border p-3.5 text-center text-sm font-semibold transition ${
+                  form.owner_kind === k
+                    ? "border-copper bg-copper/10 text-copper font-bold shadow-sm"
+                    : "border-navy/15 dark:border-slate-700 hover:border-copper/60 text-navy dark:text-slate-300 bg-slate-50/50 dark:bg-slate-800/50"
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="owner_kind"
+                  value={k}
+                  checked={form.owner_kind === k}
+                  onChange={() => update("owner_kind", k)}
+                  className="sr-only"
+                />
+                {t?.ownerKind?.[k] || (k === "owner" ? "Mülkiyyətçi" : k === "realtor" ? "Rieltor" : "Digər")}
+              </label>
+            ))}
+          </fieldset>
+        </section>
+
         {/* Əsas Məlumatlar */}
         <section className="p-6 sm:p-8 bg-white dark:bg-slate-900 rounded-2xl shadow-card border border-navy/10 dark:border-slate-800 space-y-6 transition-colors">
           <h2 className="text-lg font-bold text-navy dark:text-white border-b border-navy/10 dark:border-slate-800 pb-3 flex items-center gap-2">
@@ -205,6 +303,7 @@ export default function AddListingPage() {
                 }`}
               />
             </div>
+
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-semibold text-navy dark:text-slate-200 mb-2">Kateqoriya *</label>
@@ -222,6 +321,7 @@ export default function AddListingPage() {
                   <option value="other">Digər</option>
                 </select>
               </div>
+
               <div>
                 <label className="block text-sm font-semibold text-navy dark:text-slate-200 mb-2">Əməliyyat Növü *</label>
                 <select
@@ -229,10 +329,10 @@ export default function AddListingPage() {
                   onChange={(e) => update("transaction_type", e.target.value)}
                   className="w-full rounded-xl bg-slate-50 dark:bg-slate-800 border border-navy/15 dark:border-slate-700 px-4 py-3 text-sm outline-none text-navy dark:text-white focus:border-copper transition"
                 >
-                  <option value="sale">Satış</option>
-                  <option value="long_term_rent">Uzunmüddətli kirayə</option>
-                  <option value="daily_rent">Günlük kirayə</option>
-                  <option value="other">Digər</option>
+                  <option value="sale">{t?.transactionTypes?.sale || "Satış"}</option>
+                  <option value="rent">{t?.transactionTypes?.long_term_rent || "Kirayə"}</option>
+                  <option value="daily_rent">{t?.transactionTypes?.daily_rent || "Günlük"}</option>
+                  <option value="other">{t?.transactionTypes?.other || "Digər"}</option>
                 </select>
               </div>
             </div>
@@ -371,7 +471,7 @@ export default function AddListingPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-semibold text-navy dark:text-slate-200 mb-2">Dəqiq Ünvan *</label>
+              <label className="block text-sm font-semibold text-navy dark:text-slate-200 mb-2">Dəqiq Ünvan (Küçə, Bina) *</label>
               <input
                 value={form.address}
                 onChange={(e) => update("address", e.target.value)}
@@ -385,6 +485,8 @@ export default function AddListingPage() {
             <div>
               <label className="block text-sm font-semibold text-navy dark:text-slate-200 mb-2">Əlaqə Telefonu *</label>
               <input
+                type="tel"
+                inputMode="tel"
                 value={form.phone_number}
                 onChange={(e) => update("phone_number", e.target.value)}
                 placeholder="+994 50 123 45 67"
@@ -392,12 +494,18 @@ export default function AddListingPage() {
                   errors.phone_number ? "border-red-400 bg-red-50/30" : "border-navy/15 dark:border-slate-700"
                 }`}
               />
+              {errors.phone_number && (
+                <p className="mt-1 text-xs text-red-500">{t?.errors?.phone_required || "Düzgün Azərbaycan mobil nömrəsi daxil edin (+994 XX XXX XX XX)."}</p>
+              )}
             </div>
 
             <div className="pt-2">
               <label className="block text-sm font-semibold text-navy dark:text-slate-200 mb-2">
-                İnteraktiv Xəritədə Məkanı Qeyd Edin (Koordinatlar)
+                İnteraktiv Xəritədə Məkanı Qeyd Edin *
               </label>
+              {errors.location && (
+                <p className="mb-2 text-xs text-red-500 font-semibold">Zəhmət olmasa xəritədə əmlakın yerləşdiyi nöqtəni vurun.</p>
+              )}
               <LocationPicker
                 latitude={form.latitude ? Number(form.latitude) : 40.4093}
                 longitude={form.longitude ? Number(form.longitude) : 49.8671}
@@ -411,6 +519,11 @@ export default function AddListingPage() {
                   }
                 }}
               />
+              {form.latitude && form.longitude && (
+                <p className="mt-2 text-xs text-emerald-600 dark:text-emerald-400 font-medium">
+                  Seçilmiş koordinatlar: {Number(form.latitude).toFixed(5)}, {Number(form.longitude).toFixed(5)}
+                </p>
+              )}
             </div>
           </div>
         </section>
@@ -448,7 +561,7 @@ export default function AddListingPage() {
             Şəkil və Video Yüklə *
           </h2>
           {errors.images && (
-            <p className="text-xs text-red-500 font-semibold">Ən azı 1 ədəd şəkil yükləmək məcburidir.</p>
+            <p className="text-xs text-red-500 font-semibold">{t?.errors?.media_required || "Ən azı 1 ədəd şəkil yükləmək məcburidir."}</p>
           )}
           <div className="space-y-4">
             <MediaUploader
@@ -456,7 +569,8 @@ export default function AddListingPage() {
               setFiles={setImageFiles}
               accept="image/*"
               type="image"
-              label="Şəkillər əlavə edin"
+              label="Şəkillər əlavə edin *"
+              onBusyChange={setUploadsBusy}
             />
             <MediaUploader
               files={videoFiles}
@@ -464,16 +578,21 @@ export default function AddListingPage() {
               accept="video/*"
               type="video"
               label="Video əlavə edin (istəyə bağlı)"
+              onBusyChange={setUploadsBusy}
             />
           </div>
         </section>
 
         <button
           type="submit"
-          disabled={submitting}
+          disabled={submitting || uploadsBusy}
           className="w-full rounded-2xl bg-navy dark:bg-copper hover:bg-copper dark:hover:bg-amber-600 text-white py-4 px-6 font-bold text-base transition shadow-md cursor-pointer disabled:opacity-50"
         >
-          {submitting ? "Elan yerləşdirilir..." : "Elanı Təsdiqlə və Dərc Et"}
+          {uploadsBusy
+            ? (t?.upload?.uploading || "Fayllar yüklənir…")
+            : submitting
+            ? "Elan yerləşdirilir..."
+            : "Elanı Təsdiqlə və Dərc Et"}
         </button>
       </form>
     </div>

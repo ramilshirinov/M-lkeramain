@@ -1,141 +1,140 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState, useMemo, useCallback } from "react";
+import { createContext, useContext, useEffect, useMemo, useState, useCallback } from "react";
+import { createBrowserSupabase } from "@/lib/supabase/client";
 import { getDictionary } from "@/lib/i18n";
-import { createSmartClient } from "@/lib/supabaseAdapter";
 
-const AppContext = createContext();
+const Ctx = createContext(null);
 
-export function AppProvider({ children }) {
+const PROFILE_FIELDS = [
+  "full_name",
+  "phone",
+  "avatar_url",
+  "agency_name",
+  "agency_address",
+  "commission_rate",
+  "legal_status",
+  "service_areas",
+  "specialties",
+  "facebook_url",
+  "instagram_url",
+  "tiktok_url",
+  "youtube_url",
+  "whatsapp",
+  "telegram_handle",
+  "custom_contacts",
+  "bio",
+  "email_notifications",
+  "sms_notifications",
+];
+
+export function AppProvider({ children, initialLanguage = "az" }) {
+  const supabase = useMemo(() => createBrowserSupabase(), []);
   const [user, setUser] = useState(null);
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [language, setLanguageState] = useState("az");
+  const [language, setLanguageState] = useState(initialLanguage || "az");
 
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      const savedLang = localStorage.getItem("mulkera_lang");
-      if (savedLang && ["az", "ru", "en"].includes(savedLang)) {
-        setLanguageState(savedLang);
+  const loadProfile = useCallback(
+    async (uid) => {
+      if (!uid) {
+        setProfile(null);
+        return;
       }
-    }
-  }, []);
-
-  const setLanguage = useCallback((newLang) => {
-    setLanguageState(newLang);
-    if (typeof window !== "undefined") {
-      localStorage.setItem("mulkera_lang", newLang);
-      document.cookie = `mulkera_lang=${newLang}; path=/; max-age=31536000`;
-    }
-  }, []);
-
-  const dict = useMemo(() => getDictionary(language), [language]);
-
-  // Auth dəyişikliyi zamanı state yeniləməsi
-  const handleAuthChange = useCallback((newUser) => {
-    setUser(newUser);
-    setProfile(newUser);
-  }, []);
-
-  // Universal smart adapter
-  const supabase = useMemo(() => createSmartClient(user, handleAuthChange), [user, handleAuthChange]);
-
-  // Cari sessiyanı serverdən yoxla
-  const refreshUser = useCallback(async () => {
-    try {
-      const res = await fetch("/api/auth/me", { cache: "no-store" });
-      const json = await res.json();
-      if (json.user) {
-        setUser(json.user);
-        setProfile(json.profile || json.user);
-      } else {
-        setUser(null);
+      try {
+        const { data, error } = await supabase.from("profiles").select("*").eq("id", uid).maybeSingle();
+        if (error) console.error("profile load:", error);
+        setProfile(data ?? null);
+      } catch (err) {
+        console.error("profile fetch error:", err);
         setProfile(null);
       }
-    } catch (err) {
-      console.error("Auth yoxlanışı xətası:", err);
-    } finally {
-      setLoading(false);
+    },
+    [supabase]
+  );
+
+  useEffect(() => {
+    let alive = true;
+    supabase.auth
+      .getUser()
+      .then(async ({ data }) => {
+        if (!alive) return;
+        setUser(data.user ?? null);
+        await loadProfile(data.user?.id);
+        if (alive) setLoading(false);
+      })
+      .catch(() => {
+        if (alive) setLoading(false);
+      });
+
+    const { data: sub } = supabase.auth.onAuthStateChange((_evt, session) => {
+      setUser(session?.user ?? null);
+      loadProfile(session?.user?.id);
+    });
+
+    return () => {
+      alive = false;
+      sub?.subscription?.unsubscribe();
+    };
+  }, [supabase, loadProfile]);
+
+  useEffect(() => {
+    const saved = typeof window !== "undefined" ? localStorage.getItem("mulkera_lang") : null;
+    if (["az", "ru", "en"].includes(saved)) {
+      setLanguageState(saved);
+      document.documentElement.lang = saved;
     }
   }, []);
 
-  useEffect(() => {
-    refreshUser();
-  }, [refreshUser]);
+  const setLanguage = useCallback((l) => {
+    if (!["az", "ru", "en"].includes(l)) return;
+    setLanguageState(l);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("mulkera_lang", l);
+      document.cookie = `mulkera_lang=${l}; path=/; max-age=31536000; samesite=lax`;
+      document.documentElement.lang = l;
+    }
+  }, []);
 
-  // Giriş funksiyası
   const login = async (email, password) => {
-    const res = await fetch("/api/auth/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password }),
-    });
-    const json = await res.json();
-    if (!res.ok || !json.success) {
-      throw new Error(json.message || "Giriş uğursuz oldu");
-    }
-    setUser(json.user);
-    setProfile(json.profile || json.user);
-    return json;
+    const { error, data } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) throw new Error(error.message);
+    setUser(data.user ?? null);
+    await loadProfile(data.user?.id);
+    return data;
   };
 
-  // Bir kliklə demo giriş (Admin, Rieltor, Müştəri)
-  const quickLogin = async (quickRole) => {
-    const res = await fetch("/api/auth/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ quickRole }),
-    });
-    const json = await res.json();
-    if (json.success) {
-      setUser(json.user);
-      setProfile(json.profile || json.user);
-    }
-    return json;
-  };
-
-  // Qeydiyyat funksiyası
-  const register = async (formData) => {
-    const res = await fetch("/api/auth/register", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(formData),
-    });
-    const json = await res.json();
-    if (!res.ok || !json.success) {
-      throw new Error(json.message || "Qeydiyyat uğursuz oldu");
-    }
-    setUser(json.user);
-    setProfile(json.profile || json.user);
-    return json;
-  };
-
-  // Çıxış funksiyası
   const logout = async () => {
-    await fetch("/api/auth/logout", { method: "POST" });
+    await supabase.auth.signOut();
     setUser(null);
     setProfile(null);
   };
 
-  // Profil yeniləmə
-  const updateProfile = async (data) => {
-    const res = await fetch("/api/auth/profile", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ userId: user?.id, ...data }),
-    });
-    const json = await res.json();
-    if (json.success) {
-      setUser(json.user);
-      setProfile(json.profile || json.user);
-    }
-    return json;
+  // Yalnız profile state-ini dəyişir. user-ə TOXUNMUR -> /login-ə atılma aradan qalxır
+  const updateProfile = async (patch) => {
+    if (!user) throw new Error("unauthorized");
+    const clean = Object.fromEntries(
+      Object.entries(patch).filter(([k]) => PROFILE_FIELDS.includes(k))
+    );
+    clean.updated_at = new Date().toISOString();
+    const { data, error } = await supabase
+      .from("profiles")
+      .update(clean)
+      .eq("id", user.id)
+      .select()
+      .single();
+
+    if (error) throw new Error(error.message);
+    setProfile(data);
+    return data;
   };
+
+  const dict = useMemo(() => getDictionary(language), [language]);
 
   const value = {
     supabase,
     user,
-    profile: profile || user,
+    profile,
     loading,
     loadingAuth: loading,
     language,
@@ -144,14 +143,12 @@ export function AppProvider({ children }) {
     dict,
     t: dict,
     login,
-    quickLogin,
-    register,
     logout,
     updateProfile,
-    refreshUser,
+    refreshProfile: () => loadProfile(user?.id),
   };
 
-  return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
+  return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
 
-export const useApp = () => useContext(AppContext);
+export const useApp = () => useContext(Ctx);

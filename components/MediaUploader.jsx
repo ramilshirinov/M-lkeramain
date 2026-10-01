@@ -1,149 +1,139 @@
 "use client";
 
-import { useState } from "react";
-import { FiUpload, FiVideo, FiX, FiLoader } from "react-icons/fi";
-import { compressImageFile } from "@/lib/media";
+import { useEffect, useState } from "react";
+import { FiUpload, FiVideo, FiX, FiRefreshCw } from "react-icons/fi";
+import { uploadMedia } from "@/lib/upload";
+import { useApp } from "@/context/AppContext";
 
 export default function MediaUploader({
   files = [],
   setFiles,
-  accept = "image/*",
   type = "image",
-  label,
   bucket = "listings",
+  label,
+  onBusyChange,
 }) {
-  const [uploading, setUploading] = useState(false);
-  const [uploadError, setUploadError] = useState("");
+  const { user, t } = useApp();
+  const [queue, setQueue] = useState([]); // {id, name, file, progress, error}
+  const busy = queue.some((q) => !q.error);
 
-  const handleFileChange = async (e) => {
-    const selected = Array.from(e.target.files || []);
-    if (selected.length === 0) return;
+  useEffect(() => {
+    onBusyChange?.(busy);
+  }, [busy, onBusyChange]);
 
-    setUploading(true);
-    setUploadError("");
-
+  const runOne = async (item) => {
+    setQueue((q) => q.map((x) => (x.id === item.id ? { ...x, error: null, progress: 0 } : x)));
     try {
-      const uploaded = [];
-
-      for (let file of selected) {
-        // 1. Şəkilləri brauzerdə sıxırıq (413 Payload Too Large xətasının qarşısını almaq üçün)
-        if (type === "image" && file.type?.startsWith("image/")) {
-          try {
-            file = await compressImageFile(file, 1920, 1080, 0.8);
-          } catch (compErr) {
-            console.warn("Şəkil sıxılması xətası:", compErr);
-          }
-        }
-
-        // 2. FormData ilə Supabase Storage-ə yönləndirilən /api/upload endpointinə göndəririk
-        try {
-          const formData = new FormData();
-          formData.append("file", file);
-
-          const res = await fetch(`/api/upload?bucket=${bucket}`, {
-            method: "POST",
-            body: formData,
-          });
-
-          // Təhlükəsiz JSON oxunması (Unexpected token xətalarını aradan qaldırır)
-          const text = await res.text();
-          let json;
-          try {
-            json = JSON.parse(text);
-          } catch (jsonErr) {
-            throw new Error(text.slice(0, 100) || "Server cavab vermədi");
-          }
-
-          if (json.success && json.url) {
-            uploaded.push({ url: json.url, name: json.name || file.name, type });
-          } else {
-            throw new Error(json.message || "Fayl yüklənmədi");
-          }
-        } catch (innerErr) {
-          console.error("Yükləmə xətası:", innerErr.message);
-          setUploadError(`Fayl yüklənə bilmədi: ${innerErr.message}`);
-        }
-      }
-
-      if (uploaded.length > 0) {
-        setFiles((prev) => [...(prev || []), ...uploaded]);
-      }
-    } catch (err) {
-      console.error("Media yükləmə xətası:", err);
-      setUploadError("Fayl yüklənərkən xəta baş verdi.");
-    } finally {
-      setUploading(false);
-      e.target.value = "";
+      const res = await uploadMedia(item.file, {
+        bucket,
+        userId: user?.id || "guest",
+        onProgress: (p) =>
+          setQueue((q) => q.map((x) => (x.id === item.id ? { ...x, progress: p } : x))),
+      });
+      setFiles((prev) => [...(prev || []), { url: res.url, name: res.name, type }]);
+      setQueue((q) => q.filter((x) => x.id !== item.id));
+    } catch (e) {
+      console.error("upload error:", e);
+      setQueue((q) =>
+        q.map((x) => (x.id === item.id ? { ...x, error: e?.message || "Yükləmə xətası" } : x))
+      );
     }
   };
 
-  const removeFile = (index) => {
-    setFiles((prev) => (prev || []).filter((_, i) => i !== index));
+  const onPick = async (e) => {
+    const items = Array.from(e.target.files || []).map((file) => ({
+      id: crypto.randomUUID(),
+      name: file.name,
+      file,
+      progress: 0,
+      error: null,
+    }));
+    e.target.value = "";
+    setQueue((q) => [...q, ...items]);
+    const pool = [...items]; // max 3 concurrent
+    await Promise.all(
+      Array.from({ length: Math.min(3, pool.length) }, async () => {
+        while (pool.length) await runOne(pool.shift());
+      })
+    );
   };
+
+  const removeLabel = t?.common?.remove || "Sil";
+  const pickPhotoLabel = t?.upload?.pickImage || "Şəkil seç";
+  const pickVideoLabel = t?.upload?.pickVideo || "Video seç";
+  const retryLabel = t?.upload?.retry || "Yenidən";
 
   return (
     <div className="space-y-3">
-      {label && (
-        <label className="block text-sm font-semibold text-navy dark:text-slate-200">
-          {label}
-        </label>
-      )}
-
-      <div className="flex flex-wrap gap-4">
-        {(files || []).map((file, index) => {
-          const url = typeof file === "string" ? file : file?.url;
-          return (
-            <div
-              key={`${url}-${index}`}
-              className="relative h-24 w-24 overflow-hidden rounded-xl border border-navy/10 bg-slate-100 shadow-sm dark:border-slate-700 dark:bg-slate-800"
+      {label && <label className="block text-sm font-semibold text-navy dark:text-slate-200">{label}</label>}
+      <div className="grid grid-cols-3 gap-3 sm:grid-cols-4 md:grid-cols-5">
+        {files.map((f, i) => (
+          <div
+            key={f.url || i}
+            className="relative aspect-square overflow-hidden rounded-xl border border-navy/15 dark:border-slate-700 bg-slate-100 dark:bg-slate-800"
+          >
+            {type === "video" ? (
+              <video
+                src={f.url}
+                className="h-full w-full object-cover"
+                muted
+                playsInline
+                preload="metadata"
+              />
+            ) : (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={f.url} alt="" className="h-full w-full object-cover" loading="lazy" />
+            )}
+            <button
+              type="button"
+              aria-label={removeLabel}
+              onClick={() => setFiles((p) => p.filter((_, j) => j !== i))}
+              className="absolute right-1 top-1 rounded-full bg-red-500 p-1.5 text-white hover:bg-red-600 transition shadow cursor-pointer"
             >
-              {type === "video" ? (
-                <video src={url} className="h-full w-full object-cover" muted />
-              ) : (
-                /* eslint-disable-next-line @next/next/no-img-element */
-                <img src={url} alt="Yüklənmiş fayl" className="h-full w-full object-cover" />
-              )}
-              <button
-                type="button"
-                onClick={() => removeFile(index)}
-                aria-label="Faylı sil"
-                className="absolute right-1 top-1 rounded-full bg-red-500 p-1 text-xs text-white transition-all hover:bg-red-600 shadow cursor-pointer"
-              >
-                <FiX />
-              </button>
-            </div>
-          );
-        })}
-
-        <label
-          className={`flex h-24 w-24 flex-col items-center justify-center rounded-xl border-2 border-dashed border-navy/20 bg-slate-50 text-navy/60 transition-all hover:border-copper hover:bg-copper/5 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-300 dark:hover:border-copper dark:hover:bg-slate-700 ${
-            uploading ? "cursor-wait opacity-60" : "cursor-pointer"
-          }`}
-        >
-          {uploading ? (
-            <FiLoader className="mb-1 animate-spin text-xl text-copper" />
-          ) : type === "video" ? (
-            <FiVideo className="mb-1 text-xl text-copper" />
-          ) : (
-            <FiUpload className="mb-1 text-xl text-copper" />
-          )}
-          <span className="px-1 text-center text-[10px] font-medium">
-            {uploading ? "Sıxılır və yüklənir..." : type === "video" ? "Video seç" : "Şəkil seç"}
-          </span>
+              <FiX className="text-xs" />
+            </button>
+          </div>
+        ))}
+        <label className="flex aspect-square cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-navy/20 dark:border-slate-700 hover:border-copper text-xs text-navy/70 dark:text-slate-400 hover:text-copper transition">
+          {type === "video" ? <FiVideo className="mb-1 text-xl" /> : <FiUpload className="mb-1 text-xl" />}
+          <span className="text-center px-1">{type === "video" ? pickVideoLabel : pickPhotoLabel}</span>
           <input
             type="file"
             multiple
-            accept={accept}
-            onChange={handleFileChange}
-            className="hidden"
-            disabled={uploading}
+            hidden
+            accept={type === "video" ? "video/*" : "image/*"}
+            onChange={onPick}
           />
         </label>
       </div>
 
-      {uploadError && (
-        <p className="text-xs font-medium text-red-500 dark:text-red-400">⚠️ {uploadError}</p>
-      )}
+      {queue.map((q) => (
+        <div key={q.id} className="rounded-lg border border-navy/10 dark:border-slate-700 p-2 text-xs">
+          <div className="flex items-center justify-between gap-2">
+            <span className="truncate max-w-[200px] text-navy dark:text-slate-200">{q.name}</span>
+            {q.error ? (
+              <button
+                type="button"
+                onClick={() => runOne(q)}
+                className="flex items-center gap-1 text-red-600 hover:underline cursor-pointer"
+              >
+                <FiRefreshCw /> {retryLabel}
+              </button>
+            ) : (
+              <span className="font-semibold text-copper">{q.progress}%</span>
+            )}
+          </div>
+          <div className="mt-1 h-1.5 rounded bg-slate-200 dark:bg-slate-700 overflow-hidden">
+            <div
+              className={`h-1.5 rounded transition-all duration-200 ${
+                q.error ? "bg-red-500" : "bg-copper"
+              }`}
+              style={{ width: `${q.progress}%` }}
+            />
+          </div>
+          {q.error && <p className="mt-1 text-red-600">{q.error}</p>}
+        </div>
+      ))}
     </div>
   );
 }

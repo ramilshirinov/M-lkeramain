@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server";
-import { getSupabaseAdminClient, isSupabaseConfigured } from "@/lib/supabaseServer";
+import { requireUser } from "@/lib/api";
 
 export async function POST(req) {
   try {
+    const { user, sb } = await requireUser();
     const body = await req.json();
-    const { review_id, realtor_id, reporter_id, reason, details } = body;
+    const { review_id, realtor_id, reason, details } = body;
 
     if (!review_id || !reason) {
       return NextResponse.json(
@@ -13,55 +14,37 @@ export async function POST(req) {
       );
     }
 
-    if (isSupabaseConfigured()) {
-      try {
-        const supabase = getSupabaseAdminClient();
+    const { data: repData, error: repError } = await sb
+      .from("review_reports")
+      .insert([
+        {
+          review_id: Number(review_id),
+          realtor_id: realtor_id || null,
+          reporter_id: user.id,
+          reason,
+          details: details || "",
+          status: "pending",
+          created_at: new Date().toISOString(),
+        },
+      ])
+      .select()
+      .single();
 
-        // 1. review_reports cədvəlinə şikayəti yazırıq
-        const { data: repData, error: repError } = await supabase
-          .from("review_reports")
-          .insert([
-            {
-              review_id: Number(review_id),
-              realtor_id: realtor_id && realtor_id.length > 20 ? realtor_id : "69139734-0c43-4184-ab9e-d1f093e2ef25",
-              reporter_id: reporter_id && reporter_id.length > 20 ? reporter_id : null,
-              reason,
-              details: details || "Uyğunsuz və ya təhqiramiz rəy şikayəti",
-              status: "pending",
-              created_at: new Date().toISOString(),
-            },
-          ])
-          .select()
-          .single();
-
-        if (repError) {
-          console.warn("review_reports insert warning:", repError.message);
-        }
-
-        // 2. realtor_reviews cədvəlində is_reported statusunu aktivləşdiririk
-        await supabase
-          .from("realtor_reviews")
-          .update({
-            is_reported: true,
-          })
-          .eq("id", Number(review_id));
-
-        return NextResponse.json({
-          success: true,
-          message: "Şikayətiniz qeydə alındı və admin moderasiyasına göndərildi.",
-          data: repData,
-        });
-      } catch (sbErr) {
-        console.warn("Supabase report warning:", sbErr.message);
-      }
+    if (repError) {
+      return NextResponse.json({ success: false, message: repError.message }, { status: 400 });
     }
+
+    await sb
+      .from("realtor_reviews")
+      .update({ is_reported: true })
+      .eq("id", Number(review_id));
 
     return NextResponse.json({
       success: true,
-      message: "Şikayətiniz qeydə alındı və rəhbərlik tərəfindən araşdırılacaq.",
+      message: "Şikayətiniz qeydə alındı.",
+      data: repData,
     });
   } catch (err) {
-    console.error("Report review error:", err);
-    return NextResponse.json({ success: false, message: err.message }, { status: 500 });
+    return NextResponse.json({ success: false, message: err.message }, { status: err.status || 500 });
   }
 }

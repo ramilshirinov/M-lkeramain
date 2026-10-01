@@ -1,222 +1,70 @@
 import { NextResponse } from "next/server";
-import { getRankedRealtors, runMonthlyRealtorRankingCalculation } from "@/lib/backend/db";
-import { getSupabaseAdminClient, isSupabaseConfigured } from "@/lib/supabaseServer";
+import { getSupabaseAdmin } from "@/lib/supabase/admin";
 
-export async function GET(request) {
+export const revalidate = 60;
+
+export async function GET(req) {
   try {
-    const { searchParams } = new URL(request.url);
-    const sortBy = searchParams.get("sortBy") || "score";
-    const area = searchParams.get("area") || "";
-    const specialty = searchParams.get("specialty") || "";
+    const sp = new URL(req.url).searchParams;
+    const ym = /^\d{4}-\d{2}$/.test(sp.get("period") || "")
+      ? sp.get("period")
+      : new Date().toISOString().slice(0, 7);
+    const period = `${ym}-01`;
+    const sb = getSupabaseAdmin();
 
-    // 1. Supabase-dən real rieltor profillərini və reytinqlərini çəkirik
-    if (isSupabaseConfigured()) {
-      try {
-        const supabase = getSupabaseAdminClient();
-        const { data: profiles, error } = await supabase
-          .from("profiles")
-          .select("id, full_name, email, phone, avatar_url, role, status, agency_name, commission_rate, legal_status, rating, rating_count, service_areas, specialties, created_at")
-          .eq("role", "realtor");
+    const { data: stats, error } = await sb
+      .from("realtor_monthly_stats")
+      .select("*")
+      .eq("period", period);
 
-        if (!error && Array.isArray(profiles) && profiles.length > 0) {
-          // Hər rieltor üçün elan sayını və hesablanmış xalı təyin edirik
-          const { data: listings } = await supabase.from("listings").select("id, owner_id, status");
+    if (error) return NextResponse.json({ success: false, message: error.message }, { status: 500 });
+    const ids = (stats || []).map((s) => s.realtor_id);
+    const { data: profs, error: e2 } = ids.length
+      ? await sb.from("public_profiles").select("*").in("id", ids)
+      : { data: [], error: null };
+    if (e2) return NextResponse.json({ success: false, message: e2.message }, { status: 500 });
 
-          let list = profiles.map((p, idx) => {
-            const realtorListings = (listings || []).filter((l) => l.owner_id === p.id);
-            const activeCount = realtorListings.filter((l) => l.status === "active").length;
-            const salesCount = realtorListings.filter((l) => l.status === "sold").length || Math.max(0, 15 - idx * 3);
-            const speedDays = Math.max(7, 10 + idx * 3);
-            const rating = Number(p.rating || 5.0);
-            const reviewCount = Number(p.rating_count || 0);
+    const byId = Object.fromEntries((profs || []).map((p) => [p.id, p]));
+    let list = (stats || [])
+      .filter((s) => byId[s.realtor_id])
+      .map((s) => ({
+        ...byId[s.realtor_id], // yalnız ictimai sütunlar
+        sales_count: s.sales_count,
+        sales_speed_days: s.sales_speed_days,
+        active_listings: s.active_listings,
+        reviews_count: s.reviews_count,
+        avg_rating: s.avg_rating,
+        score: Number(s.score),
+        monthly_rank: s.monthly_rank,
+      }));
 
-            // Alqoritmik Aylıq Xal
-            const score = Math.round(
-              salesCount * 30 +
-              rating * 15 +
-              reviewCount * 5 +
-              activeCount * 2 +
-              Math.max(0, 30 - speedDays)
-            );
-
-            return {
-              id: p.id,
-              full_name: p.full_name || "MÜLKERA Rieltor",
-              email: p.email,
-              phone: p.phone,
-              avatar_url: p.avatar_url,
-              agency_name: p.agency_name || "MÜLKERA Real Estate",
-              commission_rate: p.commission_rate ? `${p.commission_rate}%` : "1.5%",
-              legal_status: p.legal_status || "VÖEN təsdiqlənib",
-              rating,
-              reviews_count: reviewCount,
-              active_listings: activeCount,
-              sales_count: salesCount,
-              sales_speed_days: speedDays,
-              score,
-              service_areas: Array.isArray(p.service_areas) && p.service_areas.length > 0 ? p.service_areas : ["Yasamal", "Nəsimi"],
-              specialties: Array.isArray(p.specialties) && p.specialties.length > 0 ? p.specialties : ["Yeni Tikili", "Mənzil"],
-            };
-          });
-
-          // Filtr: Ərazi (service_areas)
-          if (area && area !== "all") {
-            list = list.filter((r) =>
-              r.service_areas?.some((a) => a.toLowerCase().includes(area.toLowerCase()))
-            );
-          }
-
-          // Filtr: Xüsusiyyət (specialties)
-          if (specialty && specialty !== "all") {
-            list = list.filter((r) =>
-              r.specialties?.some((s) => s.toLowerCase().includes(specialty.toLowerCase()))
-            );
-          }
-
-          // Sıralama
-          if (sortBy === "sales") {
-            list.sort((a, b) => b.sales_count - a.sales_count);
-          } else if (sortBy === "speed") {
-            list.sort((a, b) => a.sales_speed_days - b.sales_speed_days);
-          } else if (sortBy === "rating") {
-            list.sort((a, b) => b.rating - a.rating || b.reviews_count - a.reviews_count);
-          } else {
-            list.sort((a, b) => b.score - a.score);
-          }
-
-          // Sıralama dərəcələrini və medalları təyin edirik
-          const rankedList = list.map((r, i) => {
-            const rank = i + 1;
-            return {
-              ...r,
-              monthly_rank: rank,
-              award:
-                rank === 1
-                  ? { badge: "🥇 Qızıl Tac", title: "Ayın Çempionu", color: "from-amber-500 to-yellow-600" }
-                  : rank === 2
-                  ? { badge: "🥈 Gümüş Ulduz", title: "Gümüş Tac", color: "from-slate-400 to-slate-500" }
-                  : rank === 3
-                  ? { badge: "🥉 Bürünc Ulduz", title: "Bürünc Tac", color: "from-amber-700 to-yellow-800" }
-                  : null,
-            };
-          });
-
-          return NextResponse.json({
-            success: true,
-            data: rankedList,
-            period: new Date().toISOString().slice(0, 7),
-            total: rankedList.length,
-            source: "supabase",
-          });
-        }
-      } catch (sbErr) {
-        console.warn("Supabase realtor rankings query fallback:", sbErr.message);
-      }
+    const area = (sp.get("area") || "").trim().toLocaleLowerCase("az");
+    if (area) {
+      list = list.filter((r) =>
+        (r.service_areas || []).some((a) => a.toLocaleLowerCase("az").includes(area))
+      );
     }
 
-    // 2. Fallback: local backend
-    const ranked = getRankedRealtors(sortBy);
+    const sort = sp.get("sortBy") || "score";
+    const cmp = {
+      score: (a, b) => (a.monthly_rank ?? 9e9) - (b.monthly_rank ?? 9e9) || b.score - a.score,
+      sales: (a, b) => b.sales_count - a.sales_count,
+      speed: (a, b) => (a.sales_speed_days ?? 9e9) - (b.sales_speed_days ?? 9e9),
+      rating: (a, b) => (b.avg_rating ?? -1) - (a.avg_rating ?? -1),
+    }[sort] || null;
+
+    if (cmp) list.sort(cmp);
+
+    const isFinal = (stats || []).length > 0 && (stats || []).every((s) => s.is_final);
     return NextResponse.json({
       success: true,
-      data: ranked,
-      period: new Date().toISOString().slice(0, 7),
-      total: ranked.length,
-      source: "local",
+      period: ym,
+      is_final: isFinal,
+      data: list,
+      total: list.length,
     });
-  } catch (error) {
-    console.error("Reytinq cədvəli xətası:", error);
-    return NextResponse.json(
-      { success: false, error: "Reytinq məlumatları yüklənərkən xəta baş verdi." },
-      { status: 500 }
-    );
-  }
-}
-
-export async function POST(request) {
-  try {
-    // 1. Supabase-də recompute_realtor_rankings hesablama alqoritmini icra edirik
-    if (isSupabaseConfigured()) {
-      try {
-        const supabase = getSupabaseAdminClient();
-
-        // RPC cəhd
-        try {
-          await supabase.rpc("recompute_realtor_rankings");
-        } catch (rpcErr) {
-          // Əgər RPC hələ yoxdursa, birbaşa JS səviyyəsində dəqiq hesablayıb Supabase cədvəllərini yeniləyirik
-          const { data: realtors } = await supabase.from("profiles").select("*").eq("role", "realtor");
-          const { data: reviews } = await supabase.from("realtor_reviews").select("*").eq("is_hidden", false);
-          const { data: listings } = await supabase.from("listings").select("id, owner_id, status");
-
-          if (realtors && realtors.length > 0) {
-            for (const r of realtors) {
-              const relReviews = (reviews || []).filter((rev) => rev.realtor_id === r.id);
-              const relListings = (listings || []).filter((l) => l.owner_id === r.id);
-
-              const revCount = relReviews.length;
-              const avgRating =
-                revCount > 0
-                  ? Number((relReviews.reduce((sum, rev) => sum + Number(rev.rating || 5), 0) / revCount).toFixed(1))
-                  : 5.0;
-              const activeCount = relListings.filter((l) => l.status === "active").length;
-              const salesCount = relListings.filter((l) => l.status === "sold").length || 8;
-              const speedDays = 12;
-
-              const score = Math.round(
-                salesCount * 30 +
-                avgRating * 15 +
-                revCount * 5 +
-                activeCount * 2 +
-                Math.max(0, 30 - speedDays)
-              );
-
-              // Profiles cədvəlini yeniləyirik
-              await supabase
-                .from("profiles")
-                .update({
-                  rating: avgRating,
-                  rating_count: revCount,
-                  updated_at: new Date().toISOString(),
-                })
-                .eq("id", r.id);
-
-              // realtor_monthly_stats cədvəlinə yazırıq
-              const currentPeriod = new Date().toISOString().slice(0, 7) + "-01";
-              await supabase
-                .from("realtor_monthly_stats")
-                .upsert(
-                  {
-                    realtor_id: r.id,
-                    period: currentPeriod,
-                    active_listings: activeCount,
-                    reviews_count: revCount,
-                    avg_rating: avgRating,
-                    score,
-                    updated_at: new Date().toISOString(),
-                  },
-                  { onConflict: "realtor_id,period" }
-                );
-            }
-          }
-        }
-      } catch (sbErr) {
-        console.warn("Supabase ranking computation warning:", sbErr.message);
-      }
-    }
-
-    const updatedRankings = runMonthlyRealtorRankingCalculation();
-
-    return NextResponse.json({
-      success: true,
-      message: "Avtomatik aylıq rieltor reytinqi (recompute_realtor_rankings) Supabase bazasında uğurla hesablandı!",
-      period: new Date().toISOString().slice(0, 7),
-      data: updatedRankings,
-    });
-  } catch (error) {
-    console.error("Reytinq hesablama xətası:", error);
-    return NextResponse.json(
-      { success: false, error: "Reytinq hesablanarkən xəta baş verdi." },
-      { status: 500 }
-    );
+  } catch (err) {
+    console.error("Rankings GET error:", err);
+    return NextResponse.json({ success: false, message: err.message }, { status: 500 });
   }
 }

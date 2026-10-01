@@ -1,17 +1,13 @@
 import { NextResponse } from "next/server";
-import { getSupabaseServerClient, isSupabaseConfigured } from "@/lib/supabaseServer";
+import { getSupabaseServer } from "@/lib/supabase/server";
 
 export async function POST() {
-  if (isSupabaseConfigured()) {
-    try {
-      const supabase = await getSupabaseServerClient();
-      await supabase.auth.signOut();
-    } catch (err) {
-      console.warn("Supabase signOut xətası:", err.message);
-    }
+  try {
+    const supabase = await getSupabaseServer();
+    await supabase.auth.signOut();
+  } catch (err) {
+    console.error("SignOut error:", err);
   }
 
-  const response = NextResponse.json({ success: true });
-  response.cookies.delete("mulkera_user_id");
-  return response;
+  return NextResponse.json({ success: true });
 }

@@ -157,7 +157,7 @@ export default function ProfilePage() {
             const { data, error } = await supabase
               .from("listings")
               .select("*, listing_photos(*)")
-              .or(`owner_id.eq.${user.id},owner_id.eq.69139734-0c43-4184-ab9e-d1f093e2ef25`);
+              .eq("owner_id", user.id);
             if (!error && data && data.length > 0) {
               setMyListings(data);
               setListingsLoading(false);

@@ -67,9 +67,7 @@ npm run dev
 
 - `/register` səhifəsindən real hesab yaradıla bilər — email təsdiqi baypas edilib
   (`email_confirm: true`), yəni qeydiyyatdan dərhal sonra avtomatik daxil olunur.
-- `/login` səhifəsindəki **Admin / Rieltor / Müştəri** düymələri 1 kliklə demo
-  hesablara daxil olur — bu hesablar Supabase-də ilk çağırışda avtomatik yaradılır
-  (`admin@mulkera.az`, `realtor@mulkera.az`, `customer@mulkera.az`, şifrə: `Mulkera2026!`).
+- İstifadəçilər `/login` səhifəsindən qeydiyyatdan keçdikləri email və şifrə ilə daxil ola bilərlər.
 
 ## 7. Canlı Yayım və PK Arenası necə işləyir
 

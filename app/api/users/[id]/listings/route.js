@@ -1,21 +1,20 @@
 import { NextResponse } from "next/server";
-import { getUserListingsPaginated, getUserOrRealtorProfile } from "@/lib/backend/db";
+import { getSupabaseAdmin } from "@/lib/supabase/admin";
 
-/**
- * GET /api/users/:id/listings
- * Həmin şəxsin aktiv paylaşdığı bütün elanları səhifələmə (pagination) ilə siyahılayır.
- */
 export async function GET(request, { params }) {
   try {
     const { id } = await params;
     const { searchParams } = new URL(request.url);
 
-    const user = getUserOrRealtorProfile(id);
-    if (!user) {
-      return NextResponse.json(
-        { success: false, error: "İstifadəçi tapılmadı." },
-        { status: 404 }
-      );
+    const sb = getSupabaseAdmin();
+    const { data: user, error: uError } = await sb
+      .from("public_profiles")
+      .select("id, full_name, agency_name, role")
+      .eq("id", id)
+      .maybeSingle();
+
+    if (uError || !user) {
+      return NextResponse.json({ success: false, error: "İstifadəçi tapılmadı." }, { status: 404 });
     }
 
     const page = Math.max(1, Number(searchParams.get("page") || 1));
@@ -23,26 +22,45 @@ export async function GET(request, { params }) {
     const status = searchParams.get("status") || "active";
     const type = searchParams.get("type") || "all";
 
-    const result = getUserListingsPaginated(id, { page, limit, status, type });
+    let query = sb
+      .from("listings")
+      .select("*, listing_photos(*), categories(*), districts(*)", { count: "exact" })
+      .eq("owner_id", id)
+      .eq("status", status);
+
+    if (type !== "all") {
+      if (type === "rent") {
+        query = query.or("transaction_type.eq.rent,transaction_type.eq.long_term_rent");
+      } else {
+        query = query.eq("transaction_type", type);
+      }
+    }
+
+    const from = (page - 1) * limit;
+    const to = from + limit - 1;
+    query = query.order("created_at", { ascending: false }).range(from, to);
+
+    const { data, count, error } = await query;
+    if (error) {
+      return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    }
+
+    const total = count || 0;
+    const totalPages = Math.ceil(total / limit) || 1;
 
     return NextResponse.json({
       success: true,
-      data: result.items,
+      data: data || [],
       pagination: {
-        total: result.total,
-        page: result.page,
-        limit: result.limit,
-        totalPages: result.totalPages
+        total,
+        page,
+        limit,
+        totalPages,
       },
-      user: {
-        id: user.id,
-        full_name: user.full_name,
-        agency_name: user.agency_name,
-        role: user.role
-      }
+      user,
     });
   } catch (error) {
-    console.error("İstifadəçi elanları xətası:", error);
+    console.error("User listings error:", error);
     return NextResponse.json(
       { success: false, error: "İstifadəçi elanlarını yükləyərkən xəta baş verdi." },
       { status: 500 }

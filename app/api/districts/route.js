@@ -1,20 +1,28 @@
 import { NextResponse } from "next/server";
-import { getDb } from "@/lib/backend/db";
-import { getAllDistrictsWithSettlements } from "@/lib/backend/locations";
+import { getSupabaseAdmin } from "@/lib/supabase/admin";
+import { AZERBAIJAN_REGIONS } from "@/constants/locations";
 
 export async function GET() {
-  const db = getDb();
-  const hierarchicalDistricts = getAllDistrictsWithSettlements();
+  try {
+    const sb = getSupabaseAdmin();
+    const { data: dbDistricts, error } = await sb.from("districts").select("*").order("name");
+    if (!error && dbDistricts && dbDistricts.length > 0) {
+      return NextResponse.json({ success: true, data: dbDistricts });
+    }
+  } catch (e) {
+    console.error("Districts fetch error:", e);
+  }
 
-  const enrichedDistricts = (db.districts || []).map((d) => {
-    const matched = hierarchicalDistricts.find((hd) => String(hd.id) === String(d.id));
-    return {
-      ...d,
-      settlements: matched?.settlements || [
-        { id: `${d.id}-diger`, name: `Digər (${d.name_az})`, type: "digər" }
-      ]
-    };
-  });
+  // Fallback to districts from AZERBAIJAN_REGIONS
+  const allDistricts = AZERBAIJAN_REGIONS.flatMap((region) =>
+    (region.districts || []).map((d, idx) => ({
+      id: d.id || idx + 1,
+      name: d.name,
+      name_az: d.name,
+      region_name: region.name,
+      settlements: d.settlements || [],
+    }))
+  );
 
-  return NextResponse.json({ success: true, data: enrichedDistricts });
+  return NextResponse.json({ success: true, data: allDistricts });
 }

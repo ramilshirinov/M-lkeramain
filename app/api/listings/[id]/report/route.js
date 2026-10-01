@@ -1,42 +1,30 @@
 import { NextResponse } from "next/server";
-import { createListingReport } from "@/lib/backend/db";
-import { getSupabaseAdminClient, isSupabaseConfigured } from "@/lib/supabaseServer";
+import { requireUser } from "@/lib/api";
 
 export async function POST(req, { params }) {
   try {
+    const { user, sb } = await requireUser();
     const { id } = await params;
     const body = await req.json();
-    const { reason, details, reporterId } = body;
+    const { reason, details } = body;
 
-    // 1. Supabase-ə şikayət əlavə edirik
-    if (isSupabaseConfigured()) {
-      try {
-        const supabase = getSupabaseAdminClient();
-        await supabase.from("reports").insert([
-          {
-            listing_id: id,
-            reporter_id: reporterId || null,
-            reason: reason || "Digər",
-            details: details || "",
-            status: "pending",
-            created_at: new Date().toISOString(),
-          },
-        ]);
-      } catch (sbErr) {
-        console.warn("Supabase report insert fallback:", sbErr.message);
-      }
+    const { data, error } = await sb.from("reports").insert([
+      {
+        listing_id: id,
+        reporter_id: user.id,
+        reason: reason || "Digər",
+        details: details || "",
+        status: "pending",
+        created_at: new Date().toISOString(),
+      },
+    ]).select().single();
+
+    if (error) {
+      return NextResponse.json({ success: false, message: error.message }, { status: 400 });
     }
 
-    // 2. Local DB
-    const report = createListingReport({
-      listingId: id,
-      reporterId: reporterId || null,
-      reason: reason || "Digər",
-      details: details || "",
-    });
-
-    return NextResponse.json({ success: true, report });
+    return NextResponse.json({ success: true, report: data });
   } catch (err) {
-    return NextResponse.json({ success: false, message: err.message }, { status: 500 });
+    return NextResponse.json({ success: false, message: err.message }, { status: err.status || 500 });
   }
 }
