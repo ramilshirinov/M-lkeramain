@@ -43,14 +43,10 @@ export default function MyListings() {
   const handleDelete = async (id) => {
     if (!window.confirm("Bu elanı silmək istədiyinizə əminsiniz?")) return;
     setDeletingId(id);
-    const { error: err } = await supabase
-      .from("listings")
-      .delete()
-      .eq("id", id)
-      .eq("owner_id", user.id);
-
-    if (err) {
-      console.error("Silinmə xətası:", err.message);
+    const res = await fetch(`/api/listings/${id}`, { method: "DELETE" });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok || !json.success) {
+      console.error("Silinmə xətası:", json.message);
       setError("Elanı silmək mümkün olmadı.");
     } else {
       setListings((prev) => prev.filter((l) => l.id !== id));

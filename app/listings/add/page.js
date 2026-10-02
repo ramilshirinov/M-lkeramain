@@ -12,6 +12,7 @@ import {
 import { normalizeAzPhone } from "@/lib/phone";
 import { AZERBAIJAN_REGIONS } from "@/constants/locations";
 import MediaUploader from "@/components/MediaUploader";
+import YouTubeVideoUploader from "@/components/YouTubeVideoUploader";
 import { FiPlusCircle, FiCheckCircle, FiHome, FiDollarSign, FiMapPin, FiLayers, FiUserCheck } from "react-icons/fi";
 import dynamic from "next/dynamic";
 
@@ -65,7 +66,9 @@ export default function AddListingPage() {
   const [errors, setErrors] = useState({});
   const [formError, setFormError] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const [uploadsBusy, setUploadsBusy] = useState(false);
+  const [imgBusy, setImgBusy] = useState(false);
+  const [vidBusy, setVidBusy] = useState(false);
+  const uploadsBusy = imgBusy || vidBusy;
   const [success, setSuccess] = useState(false);
 
   const requestIdRef = useRef(null);
@@ -570,15 +573,13 @@ export default function AddListingPage() {
               accept="image/*"
               type="image"
               label="Şəkillər əlavə edin *"
-              onBusyChange={setUploadsBusy}
+              onBusyChange={setImgBusy}
             />
-            <MediaUploader
+            <YouTubeVideoUploader
               files={videoFiles}
               setFiles={setVideoFiles}
-              accept="video/*"
-              type="video"
               label="Video əlavə edin (istəyə bağlı)"
-              onBusyChange={setUploadsBusy}
+              onBusyChange={setVidBusy}
             />
           </div>
         </section>

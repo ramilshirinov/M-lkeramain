@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import { useApp } from "@/context/AppContext";
@@ -13,6 +13,8 @@ import {
   localizedField,
 } from "@/lib/listings";
 import MediaUploader from "@/components/MediaUploader";
+import YouTubeVideoUploader from "@/components/YouTubeVideoUploader";
+import { getYoutubeId, removedVideoIds, deleteYoutubeVideo } from "@/lib/youtubeUpload";
 import { FiCheckCircle, FiAlertCircle, FiEdit3 } from "react-icons/fi";
 
 const LocationPicker = dynamic(() => import("@/components/LocationPicker"), {
@@ -32,9 +34,13 @@ export default function EditListingPage() {
   const [form, setForm] = useState(null);
   const [imageFiles, setImageFiles] = useState([]);
   const [videoFiles, setVideoFiles] = useState([]);
+  const initialVideosRef = useRef([]);
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [imgBusy, setImgBusy] = useState(false);
+  const [vidBusy, setVidBusy] = useState(false);
+  const uploadsBusy = imgBusy || vidBusy;
   const [success, setSuccess] = useState(false);
   const [notAllowed, setNotAllowed] = useState(false);
 
@@ -99,14 +105,15 @@ export default function EditListingPage() {
       let existingVideos = (data.listing_photos || [])
         .filter((p) => p.media_type === "video")
         .sort((a, b) => a.sort_order - b.sort_order)
-        .map((p) => ({ url: p.url, name: "existing", type: "video" }));
+        .map((p) => ({ url: p.url, name: "existing", type: "video", videoId: p.youtube_video_id || getYoutubeId(p.url) }));
 
       if (existingVideos.length === 0 && data.video_url) {
-        existingVideos = [{ url: data.video_url, name: "existing", type: "video" }];
+        existingVideos = [{ url: data.video_url, name: "existing", type: "video", videoId: getYoutubeId(data.video_url) }];
       }
 
       setImageFiles(existingPhotos);
       setVideoFiles(existingVideos);
+      initialVideosRef.current = existingVideos;
       setLoading(false);
     }
     if (user) load();
@@ -173,10 +180,14 @@ export default function EditListingPage() {
       };
 
       await updateListing(supabase, id, payload);
-      await replaceListingMedia(supabase, id, {
-        photoUrls: imageFiles.map((f) => f.url || f),
-        videoUrls: videoFiles.map((f) => f.url || f),
-      });
+      await replaceListingMedia(supabase, id, [
+        ...imageFiles.map((f) => ({ url: f.url || f, type: "image" })),
+        ...videoFiles.map((f) => ({ url: f.url || f, type: "video" })),
+      ]);
+
+      // YALNIZ media uğurla yazıldıqdan SONRA — çıxarılmış videoları YouTube-dan sil.
+      const removed = removedVideoIds(initialVideosRef.current, videoFiles);
+      await Promise.allSettled(removed.map((vid) => deleteYoutubeVideo(vid)));
 
       setSuccess(true);
       setTimeout(() => router.push(`/listings/${id}`), 1200);
@@ -296,15 +307,15 @@ export default function EditListingPage() {
               accept="image/*"
               type="image"
               label="Şəkil Faylları (Ən azı 1 ədəd) *"
+              onBusyChange={setImgBusy}
             />
             {errors.images && <p className="text-xs text-red-500 font-medium">⚠️ Zəhmət olmasa, ən azı bir şəkil əlavə edin.</p>}
 
-            <MediaUploader
+            <YouTubeVideoUploader
               files={videoFiles}
               setFiles={setVideoFiles}
-              accept="video/*"
-              type="video"
-              label="Video Faylı (Könüllü)"
+              label="Video (Könüllü)"
+              onBusyChange={setVidBusy}
             />
           </div>
         </section>
@@ -449,10 +460,10 @@ export default function EditListingPage() {
 
         <button
           type="submit"
-          disabled={submitting}
+          disabled={submitting || uploadsBusy}
           className="w-full rounded-xl bg-navy text-white hover:bg-copper py-4 px-4 text-base font-bold transition shadow-sm disabled:opacity-50 cursor-pointer"
         >
-          {submitting ? "Yenilənir..." : "Dəyişiklikləri Yadda Saxla"}
+          {uploadsBusy ? (t?.upload?.uploading || "Fayllar yüklənir…") : submitting ? "Yenilənir..." : "Dəyişiklikləri Yadda Saxla"}
         </button>
       </form>
     </div>

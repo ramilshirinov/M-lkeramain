@@ -330,11 +330,8 @@ export default function ProfilePage() {
     if (!confirm("Bu elanı silmək istədiyinizə əminsiniz?")) return;
 
     try {
-      if (supabase && typeof supabase.from === "function") {
-        await supabase.from("listings").delete().eq("id", id);
-      }
       const res = await fetch(`/api/listings/${id}`, { method: "DELETE" });
-      const json = await res.json();
+      const json = await res.json().catch(() => ({}));
       if (!res.ok || !json.success) throw new Error(json.message || "Silinmədi");
       setMyListings((prev) => prev.filter((item) => item.id !== id));
       setStatusMsg("Elan uğurla silindi.");

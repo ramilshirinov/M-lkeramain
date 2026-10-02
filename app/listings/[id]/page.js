@@ -6,6 +6,8 @@ import Link from "next/link";
 import { useApp } from "@/context/AppContext";
 import { useFavorite } from "@/hooks/useFavorite";
 import ListingCard from "@/components/ListingCard";
+import YouTubePlayer from "@/components/YouTubePlayer";
+import { getYoutubeId, youtubeEmbedUrl } from "@/lib/youtubeUpload";
 import { localizedField, reportListing } from "@/lib/listings";
 import { 
   FiMapPin, FiCalendar, FiDollarSign, FiHome, FiMaximize2, 
@@ -403,11 +405,12 @@ export default function ListingDetailPage() {
     listing.listing_photos.forEach((p) => {
       const url = typeof p === "string" ? p : p?.url;
       if (!url) return;
-      const isVideo = p?.media_type === "video" || /\.(mp4|webm|mov|ogg|m4v)(\?.*)?$/i.test(url);
+      const isVideo = p?.media_type === "video" || /\.(mp4|webm|mov|ogg|m4v)(\?.*)?$/i.test(url) || !!getYoutubeId(p);
       allMedia.push({
         id: p.id || url,
         url,
         media_type: isVideo ? "video" : "image",
+        youtubeId: getYoutubeId(p),
         sort_order: p.sort_order ?? 0,
       });
     });
@@ -418,6 +421,7 @@ export default function ListingDetailPage() {
       id: "video-single",
       url: listing.video_url,
       media_type: "video",
+      youtubeId: getYoutubeId(listing.video_url),
       sort_order: 999,
     });
   }
@@ -659,17 +663,24 @@ export default function ListingDetailPage() {
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {videos.map((v, idx) => (
-                  <div key={v.url || idx} className="rounded-2xl overflow-hidden bg-black border border-navy/10 dark:border-slate-800 shadow-md">
-                    <video
-                      controls
-                      preload="metadata"
-                      playsInline
-                      src={v.url}
-                      className="w-full rounded-2xl object-cover aspect-video bg-black"
-                    >
-                      <source src={v.url} type={getMime(v.url)} />
-                      Brauzeriniz video teqini dəstəkləmir.
-                    </video>
+                  <div
+                    key={v.url || idx}
+                    className="rounded-2xl overflow-hidden bg-black border border-navy/10 dark:border-slate-800 shadow-md"
+                  >
+                    {v.youtubeId ? (
+                      <YouTubePlayer videoId={v.youtubeId} title={`${listing.title || "Elan"} — video`} />
+                    ) : (
+                      <video
+                        controls
+                        preload="metadata"
+                        playsInline
+                        src={v.url}
+                        className="w-full rounded-2xl object-cover aspect-video bg-black"
+                      >
+                        <source src={v.url} type={getMime(v.url)} />
+                        Brauzeriniz video teqini dəstəkləmir.
+                      </video>
+                    )}
                   </div>
                 ))}
               </div>
@@ -1195,12 +1206,23 @@ export default function ListingDetailPage() {
 
             <div className="max-w-5xl max-h-[85vh] flex items-center justify-center">
               {allMedia[activeMediaIndex]?.media_type === "video" ? (
-                <video 
-                  src={allMedia[activeMediaIndex].url} 
-                  controls 
-                  autoPlay 
-                  className="max-h-[85vh] max-w-[85vw] rounded-2xl"
-                />
+                allMedia[activeMediaIndex].youtubeId ? (
+                  <iframe
+                    src={youtubeEmbedUrl(allMedia[activeMediaIndex].youtubeId, { autoplay: true })}
+                    title="Video"
+                    className="aspect-video w-[85vw] max-w-5xl rounded-2xl bg-black"
+                    allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture; fullscreen"
+                    allowFullScreen
+                    referrerPolicy="strict-origin-when-cross-origin"
+                  />
+                ) : (
+                  <video 
+                    src={allMedia[activeMediaIndex].url} 
+                    controls 
+                    autoPlay 
+                    className="max-h-[85vh] max-w-[85vw] rounded-2xl"
+                  />
+                )
               ) : (
                 <img 
                   src={allMedia[activeMediaIndex]?.url || currentSrc} 

@@ -22,7 +22,7 @@ export default function ListingCard({ listing }) {
       const found = listing.listing_photos.find((p) => {
         const u = typeof p === "string" ? p : p?.url;
         const type = typeof p === "object" ? p?.media_type : null;
-        return !!u && type !== "video" && !u.match(/\.(mp4|webm|mov)$/i);
+        return !!u && type !== "video" && !u.match(/\.(mp4|webm|mov)$/i) && !/youtube\.com|youtu\.be/.test(u);
       });
       if (found) return typeof found === "string" ? found : found.url;
     }
