@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { route, requireUser, HttpError } from "@/lib/api";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
-import { getVideo, uploadTag, watchUrl, embedUrl, VIDEO_ID_RE, UUID_RE } from "@/lib/youtube";
+import { getVideo, uploadTag, watchUrl, embedUrl, VIDEO_ID_RE, UUID_RE, clean } from "@/lib/youtube";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -51,7 +51,8 @@ export const POST = route(async (req) => {
 
   // Video bu sessiyaya aiddirmi? (init-də qoyduğumuz gizli teq)
   if (!(video.snippet?.tags || []).includes(uploadTag(uploadId))) throw new HttpError(403, "forbidden");
-  if (process.env.YOUTUBE_CHANNEL_ID && video.snippet?.channelId !== process.env.YOUTUBE_CHANNEL_ID) {
+  const channelId = clean(process.env.YOUTUBE_CHANNEL_ID);
+  if (channelId && video.snippet?.channelId !== channelId) {
     throw new HttpError(403, "forbidden");
   }
 
