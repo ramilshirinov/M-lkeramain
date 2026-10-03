@@ -12,7 +12,7 @@ import {
 import { normalizeAzPhone } from "@/lib/phone";
 import { AZERBAIJAN_REGIONS } from "@/constants/locations";
 import MediaUploader from "@/components/MediaUploader";
-import YouTubeVideoUploader from "@/components/YouTubeVideoUploader";
+import TelegramVideoUploader from "@/components/TelegramVideoUploader";
 import { FiPlusCircle, FiCheckCircle, FiHome, FiDollarSign, FiMapPin, FiLayers, FiUserCheck } from "react-icons/fi";
 import dynamic from "next/dynamic";
 
@@ -243,7 +243,7 @@ export default function AddListingPage() {
       )}
 
       <form onSubmit={handleSubmit} className="space-y-8">
-        {/* Elan Sahibi Seçimi (Step 12.2) */}
+        {/* Elan Sahibi Seçimi */}
         <section className="p-6 sm:p-8 bg-white dark:bg-slate-900 rounded-2xl shadow-card border border-navy/10 dark:border-slate-800 space-y-4 transition-colors">
           <h2 className="text-lg font-bold text-navy dark:text-white border-b border-navy/10 dark:border-slate-800 pb-3 flex items-center gap-2">
             <FiUserCheck className="text-copper" /> {t?.addListing?.ownerKind || "Elan sahibi"} *
@@ -575,7 +575,7 @@ export default function AddListingPage() {
               label="Şəkillər əlavə edin *"
               onBusyChange={setImgBusy}
             />
-            <YouTubeVideoUploader
+            <TelegramVideoUploader
               files={videoFiles}
               setFiles={setVideoFiles}
               label="Video əlavə edin (istəyə bağlı)"

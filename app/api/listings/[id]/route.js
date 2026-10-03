@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { requireUser } from "@/lib/api";
-import { purgeVideos } from "@/lib/youtube";
 
 export async function GET(req, { params }) {
   try {
@@ -114,30 +113,15 @@ export async function DELETE(req, { params }) {
     const { user, sb } = await requireUser();
     const { id } = await params;
 
-    // 1) Silinməzdən ƏVVƏL bu elanın YouTube ID-lərini oxu
-    const { data: vids } = await sb
-      .from("listing_photos")
-      .select("youtube_video_id")
-      .eq("listing_id", id)
-      .not("youtube_video_id", "is", null);
-    const videoIds = (vids || []).map((v) => v.youtube_video_id);
-
-    // 2) Elanı sil (yalnız sahibi) — neçə sətir silindiyini yoxla
-    const { data: deleted, error } = await sb
+    // Elanı sil (yalnız sahibi)
+    const { error } = await sb
       .from("listings")
       .delete()
       .eq("id", id)
-      .eq("owner_id", user.id)
-      .select("id");
+      .eq("owner_id", user.id);
 
     if (error) {
       return NextResponse.json({ success: false, message: error.message }, { status: 400 });
-    }
-
-    // 3) YALNIZ həqiqətən silinibsə YouTube-dan sil (başqasının elanının videosunu silməmək üçün)
-    //    purgeVideos heç vaxt throw etmir; uğursuz olanları cron təmizləyəcək.
-    if (deleted?.length && videoIds.length) {
-      await purgeVideos(videoIds);
     }
 
     return NextResponse.json({ success: true, message: "Elan silindi" });
