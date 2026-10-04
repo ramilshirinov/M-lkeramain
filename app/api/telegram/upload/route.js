@@ -1,57 +1,36 @@
 import { NextResponse } from "next/server";
+import { uploadVideoToTelegram, VideoError } from "@/lib/telegramVideo";
 
+export const runtime = "nodejs"; // ffmpeg (child_process) yalnız Node runtime-da işləyir
+export const dynamic = "force-dynamic";
+
+// lib/upload.js bu route-u çağırır və cavabda { url, path } və xəta halında { error } gözləyir.
 export async function POST(req) {
+  let formData;
   try {
-    const formData = await req.formData();
-    const videoFile = formData.get("video");
+    formData = await req.formData();
+  } catch (err) {
+    console.error("[telegram/upload] formData oxunmadı:", err.message);
+    return NextResponse.json({ error: "Fayl serverə tam çatmadı. Yenidən cəhd edin." }, { status: 400 });
+  }
 
-    if (!videoFile) {
-      return NextResponse.json({ error: "Video faylı tapılmadı" }, { status: 400 });
-    }
+  const file = formData.get("video") || formData.get("file");
+  if (!file || typeof file === "string") {
+    return NextResponse.json({ error: "Video faylı tapılmadı" }, { status: 400 });
+  }
 
-    const botToken = process.env.TELEGRAM_BOT_TOKEN;
-    const chatId = process.env.TELEGRAM_CHAT_ID;
-
-    if (!botToken || !chatId) {
-      return NextResponse.json({ error: "Telegram bot tənzimləmələri mövcud deyil" }, { status: 500 });
-    }
-
-    // Videonu Telegram-a göndərmək üçün FormData hazırlayırıq
-    const telegramFormData = new FormData();
-    telegramFormData.append("chat_id", chatId);
-    telegramFormData.append("video", videoFile);
-
-    const telegramRes = await fetch(`https://api.telegram.org/bot${botToken}/sendVideo`, {
-      method: "POST",
-      body: telegramFormData,
-    });
-
-    const telegramData = await telegramRes.json();
-
-    if (!telegramData.ok) {
-      return NextResponse.json(
-        { error: telegramData.description || "Telegram-a yükləmə xətası" },
-        { status: 500 }
-      );
-    }
-
-    // Telegram-dan gələn video məlumatlarından file_id götürürük
-    const videoObj = telegramData.result.video;
-    const fileId = videoObj.file_id;
-
-    // Stream/baxış üçün endpoint URL-i yaradırıq (və ya birbaşa file_id saxlayırıq)
-    // Məsələn: /api/video-stream?file_id=...
-    const fileUrl = `/api/video-stream?file_id=${fileId}`;
-
+  try {
+    const r = await uploadVideoToTelegram(file);
     return NextResponse.json({
       success: true,
-      url: fileUrl,
-      path: fileId,
-      name: videoFile.name,
-      size: videoFile.size,
+      url: r.videoUrl,
+      path: r.fileId,
+      name: file.name,
+      size: file.size,
+      audio: r.audio, // "ok" | "none" | "silent" | "dropped"
     });
-  } catch (error) {
-    console.error("Telegram upload error:", error);
-    return NextResponse.json({ error: error.message || "Server xətası" }, { status: 500 });
+  } catch (err) {
+    if (!(err instanceof VideoError)) console.error("[telegram/upload] gözlənilməz xəta:", err);
+    return NextResponse.json({ error: err?.message || "Server xətası" }, { status: err?.status || 500 });
   }
 }
