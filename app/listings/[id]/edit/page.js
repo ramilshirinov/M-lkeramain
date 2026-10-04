@@ -13,8 +13,6 @@ import {
   localizedField,
 } from "@/lib/listings";
 import MediaUploader from "@/components/MediaUploader";
-import YouTubeVideoUploader from "@/components/YouTubeVideoUploader";
-import { getYoutubeId, removedVideoIds, deleteYoutubeVideo } from "@/lib/youtubeUpload";
 import { FiCheckCircle, FiAlertCircle, FiEdit3 } from "react-icons/fi";
 
 const LocationPicker = dynamic(() => import("@/components/LocationPicker"), {
@@ -105,10 +103,10 @@ export default function EditListingPage() {
       let existingVideos = (data.listing_photos || [])
         .filter((p) => p.media_type === "video")
         .sort((a, b) => a.sort_order - b.sort_order)
-        .map((p) => ({ url: p.url, name: "existing", type: "video", videoId: p.youtube_video_id || getYoutubeId(p.url) }));
+        .map((p) => ({ url: p.url, name: "existing", type: "video" }));
 
       if (existingVideos.length === 0 && data.video_url) {
-        existingVideos = [{ url: data.video_url, name: "existing", type: "video", videoId: getYoutubeId(data.video_url) }];
+        existingVideos = [{ url: data.video_url, name: "existing", type: "video" }];
       }
 
       setImageFiles(existingPhotos);
@@ -184,10 +182,6 @@ export default function EditListingPage() {
         ...imageFiles.map((f) => ({ url: f.url || f, type: "image" })),
         ...videoFiles.map((f) => ({ url: f.url || f, type: "video" })),
       ]);
-
-      // YALNIZ media uğurla yazıldıqdan SONRA — çıxarılmış videoları YouTube-dan sil.
-      const removed = removedVideoIds(initialVideosRef.current, videoFiles);
-      await Promise.allSettled(removed.map((vid) => deleteYoutubeVideo(vid)));
 
       setSuccess(true);
       setTimeout(() => router.push(`/listings/${id}`), 1200);
@@ -310,17 +304,10 @@ export default function EditListingPage() {
               onBusyChange={setImgBusy}
             />
             {errors.images && <p className="text-xs text-red-500 font-medium">⚠️ Zəhmət olmasa, ən azı bir şəkil əlavə edin.</p>}
-
-            <YouTubeVideoUploader
-              files={videoFiles}
-              setFiles={setVideoFiles}
-              label="Video (Könüllü)"
-              onBusyChange={setVidBusy}
-            />
           </div>
         </section>
 
-        {/* MƏKAN VƏ ÜNVAN */}
+        {/* Məkan və Ünvan */}
         <section className="card-surface p-6 sm:p-8 bg-white rounded-2xl shadow-card border border-navy/10 space-y-4">
           <h2 className="text-lg font-bold text-navy border-b pb-3">Məkan və Ünvan</h2>
           <div className="space-y-4">
@@ -368,7 +355,7 @@ export default function EditListingPage() {
           </div>
         </section>
 
-        {/* ƏMLAK PARAMETrlƏRİ */}
+        {/* ƏMLAK PARAMETRLƏRİ */}
         <section className="card-surface p-6 sm:p-8 bg-white rounded-2xl shadow-card border border-navy/10 space-y-4">
           <h2 className="text-lg font-bold text-navy border-b pb-3">Əmlakın Parametrləri</h2>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
