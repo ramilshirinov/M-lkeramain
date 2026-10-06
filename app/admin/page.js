@@ -358,9 +358,6 @@ export default function AdminPage() {
                   className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-11 pr-4 py-3 text-sm text-white placeholder-slate-600 focus:outline-none focus:border-copper transition"
                 />
               </div>
-              <p className="text-[11px] text-slate-500 mt-2">
-                Qeyd: Standart master parol <code className="text-copper font-mono">Password123!</code> və ya <code className="text-copper font-mono">Mulkera2026!Admin</code>-dir.
-              </p>
             </div>
 
             {authError && (

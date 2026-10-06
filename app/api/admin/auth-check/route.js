@@ -5,7 +5,7 @@ import { getSupabaseAdmin } from "@/lib/supabase/admin";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const ADMIN_MASTER_PASS = process.env.ADMIN_MASTER_PASSWORD || "Mulkera2026!Admin";
+const ADMIN_MASTER_PASS = process.env.ADMIN_MASTER_PASSWORD || "Mulkera2026";
 
 export async function GET(req) {
   try {
@@ -47,7 +47,7 @@ export async function POST(req) {
   try {
     const { password } = await req.json();
 
-    if (password && (password === ADMIN_MASTER_PASS || password === "Password123!")) {
+    if (password && password === ADMIN_MASTER_PASS) {
       const res = NextResponse.json({ success: true, message: "Admin girişi uğurlu oldu" });
       res.cookies.set("mulkera_admin_session", "authorized_admin_access", {
         path: "/",
