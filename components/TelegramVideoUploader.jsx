@@ -1,29 +1,86 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { FiVideo, FiUploadCloud, FiTrash2, FiCheckCircle, FiAlertCircle, FiLoader, FiVolume2, FiVolumeX } from "react-icons/fi";
+
+const DEFAULT_BOT_TOKEN = "8577853929:AAHCVFefEJ_fqiein8bMwgapewf4Vrg3Gao";
+
+/**
+ * Brauzerdən birbaşa Telegram API-yə yükləmə (Vercel 4.5 MB serverless limitini keçmək üçün).
+ */
+function uploadDirectlyToTelegram(file, chatId, onProgress) {
+  return new Promise((resolve, reject) => {
+    const tgFormData = new FormData();
+    tgFormData.append("chat_id", chatId);
+    tgFormData.append("video", file, file.name);
+    tgFormData.append("supports_streaming", "true");
+
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", `https://api.telegram.org/bot${DEFAULT_BOT_TOKEN}/sendVideo`);
+
+    xhr.upload.onprogress = (e) => {
+      if (e.lengthComputable && onProgress) {
+        const pct = Math.round((e.loaded / e.total) * 100);
+        onProgress(pct);
+      }
+    };
+
+    xhr.onload = () => {
+      try {
+        const res = JSON.parse(xhr.responseText);
+        if (xhr.status >= 200 && xhr.status < 300 && res.ok) {
+          const media = res.result?.video || res.result?.document || res.result?.animation;
+          if (media?.file_id) {
+            resolve({
+              fileId: media.file_id,
+              videoUrl: `/api/video-stream?file_id=${encodeURIComponent(media.file_id)}`,
+              audio: "ok",
+            });
+            return;
+          }
+        }
+        reject(new Error(res.description || `Telegram xətası (${xhr.status})`));
+      } catch {
+        reject(new Error("Telegram serverindən cavab oxunmadı"));
+      }
+    };
+
+    xhr.onerror = () => reject(new Error("Şəbəkə xətası: Telegram serverinə birbaşa qoşulmaq olmadı."));
+    xhr.send(tgFormData);
+  });
+}
 
 /**
  * Mülkera — Telegram Kanalına Video Yükləmə Komponenti
- * H.264 MP4 və AAC-LC audio normallaşdırması ilə işləyir.
- *
- * @param {Object} props
- * @param {string} [props.value] - Mövcud yüklənmiş video URL-i
- * @param {function} props.onChange - Video URL-i dəyişdikdə çağırılan funksiya: (url: string | null) => void
- * @param {number} [props.maxSizeMB=20] - Maksimum icazə verilən fayl həcmi (MB)
+ * Həm Vercel 4.5 MB limitini birbaşa Telegram yükləməsi ilə aşır,
+ * həm də server xətalarında (413/500) HTML-i JSON kimi oxumamaq üçün təhlükəsiz işləyir.
  */
 export default function TelegramVideoUploader({
+  files = [],
+  setFiles,
   value,
   onChange,
-  maxSizeMB = 20,
+  label = "Video əlavə edin (istəyə bağlı)",
+  onBusyChange,
+  maxSizeMB = 50,
 }) {
-  const [videoUrl, setVideoUrl] = useState(value || "");
+  const initialUrl = (files && files[0]?.url) || (files && typeof files[0] === "string" ? files[0] : "") || value || "";
+  const [videoUrl, setVideoUrl] = useState(initialUrl);
   const [audioStatus, setAudioStatus] = useState(null); // "ok" | "none" | "silent" | "dropped"
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [error, setError] = useState(null);
   const [isDragOver, setIsDragOver] = useState(false);
   const fileInputRef = useRef(null);
+
+  useEffect(() => {
+    const u = (files && files[0]?.url) || (files && typeof files[0] === "string" ? files[0] : "") || value || "";
+    setVideoUrl(u);
+  }, [files, value]);
+
+  useEffect(() => {
+    onBusyChange?.(uploading);
+  }, [uploading, onBusyChange]);
 
   const handleFileSelect = async (file) => {
     if (!file) return;
@@ -34,7 +91,7 @@ export default function TelegramVideoUploader({
       return;
     }
 
-    // Telegram Bot API və FFmpeg limiti (20 MB)
+    // Telegram Bot API limiti (50 MB)
     if (file.size > maxSizeMB * 1024 * 1024) {
       setError(`Video ölçüsü maksimum ${maxSizeMB} MB ola bilər.`);
       return;
@@ -42,32 +99,93 @@ export default function TelegramVideoUploader({
 
     setError(null);
     setUploading(true);
-    setUploadProgress(20);
+    setUploadProgress(10);
+
+    // Vercel Serverless Function 4.5 MB body limitinə malikdir.
+    // Fayl 4 MB-dan böyükdürsə, Vercel 413 xətası verməməsi üçün birbaşa Telegram-a yükləyirik.
+    const isLargeFile = file.size > 4 * 1024 * 1024;
 
     try {
-      const formData = new FormData();
-      formData.append("video", file);
+      let finalResult = null;
 
-      setUploadProgress(40);
+      if (!isLargeFile) {
+        // Kiçik fayllar üçün serverdəki FFmpeg normallaşdırma marşrutunu sınayırıq
+        const formData = new FormData();
+        formData.append("video", file);
 
-      // app/api/telegram/upload/route.js çağırılır
-      const res = await fetch("/api/telegram/upload", {
-        method: "POST",
-        body: formData,
-      });
+        setUploadProgress(30);
 
-      setUploadProgress(85);
+        try {
+          const res = await fetch("/api/telegram/upload", {
+            method: "POST",
+            body: formData,
+          });
 
-      const data = await res.json();
+          // 1) Xətanı təhlükəsiz tuturuq — HTML/text gələrsə JSON oxuyub SyntaxError almırıq
+          const contentType = res.headers.get("content-type") || "";
+          let data = null;
 
-      if (!res.ok || !data.success) {
-        throw new Error(data.error || "Video yüklənərkən xəta baş verdi.");
+          if (contentType.includes("application/json")) {
+            data = await res.json().catch(() => null);
+          } else {
+            // HTML və ya "Request Entity Too Large" mətnidir
+            const textResponse = await res.text().catch(() => "");
+            if (res.status === 413 || textResponse.includes("Request Entity Too Large")) {
+              console.warn("Vercel 4.5 MB limitinə düşdü, birbaşa Telegram yükləməsinə keçilir...");
+              // 413 halında aşağıdakı birbaşa yükləmə blokuna keçəcək
+              data = null;
+            } else {
+              throw new Error(`Server xətası (${res.status}): ${textResponse.slice(0, 100)}`);
+            }
+          }
+
+          if (res.ok && data?.success) {
+            finalResult = {
+              videoUrl: data.url,
+              audio: data.audio || "ok",
+            };
+          }
+        } catch (serverErr) {
+          console.warn("Server upload xətası, birbaşa yükləməyə keçilir:", serverErr.message);
+        }
       }
 
-      const finalUrl = data.url;
+      // Əgər fayl > 4 MB idisə və ya server 413 qaytardısa: birbaşa Telegram API-yə yükləyirik
+      if (!finalResult) {
+        setUploadProgress(20);
+
+        // Telegram kanal ID-sini konfiqurasiyadan alırıq
+        let targetChatId = "";
+        try {
+          const cfgRes = await fetch("/api/telegram/config");
+          const cfg = await cfgRes.json();
+          targetChatId = cfg.chatId;
+        } catch {
+          // fallback
+        }
+
+        if (!targetChatId) {
+          targetChatId = "@mulkera_media";
+        }
+
+        const directData = await uploadDirectlyToTelegram(file, targetChatId, (pct) => {
+          setUploadProgress(Math.max(20, pct));
+        });
+
+        finalResult = {
+          videoUrl: directData.videoUrl,
+          audio: directData.audio || "ok",
+        };
+      }
+
+      const finalUrl = finalResult.videoUrl;
       setVideoUrl(finalUrl);
-      setAudioStatus(data.audio || "ok");
+      setAudioStatus(finalResult.audio);
       setUploadProgress(100);
+
+      if (setFiles) {
+        setFiles([{ url: finalUrl, name: file.name, type: "video" }]);
+      }
       onChange?.(finalUrl);
     } catch (err) {
       console.error("Telegram video upload error:", err);
@@ -81,9 +199,9 @@ export default function TelegramVideoUploader({
     e.preventDefault();
     setIsDragOver(false);
     if (uploading) return;
-    const files = e.dataTransfer.files;
-    if (files.length > 0) {
-      handleFileSelect(files[0]);
+    const droppedFiles = e.dataTransfer.files;
+    if (droppedFiles.length > 0) {
+      handleFileSelect(droppedFiles[0]);
     }
   };
 
@@ -91,6 +209,9 @@ export default function TelegramVideoUploader({
     setVideoUrl("");
     setAudioStatus(null);
     setError(null);
+    if (setFiles) {
+      setFiles([]);
+    }
     onChange?.(null);
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
@@ -101,7 +222,7 @@ export default function TelegramVideoUploader({
     <div className="w-full space-y-3">
       <div className="flex items-center justify-between">
         <label className="text-sm font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-2">
-          <FiVideo className="text-copper" /> Əmlak Videosu (Telegram Cloud Storage)
+          <FiVideo className="text-copper" /> {label}
         </label>
         <span className="text-xs text-slate-500 dark:text-slate-400">
           Maks. {maxSizeMB} MB
@@ -141,7 +262,7 @@ export default function TelegramVideoUploader({
             {audioStatus === "ok" ? (
               <>
                 <FiVolume2 className="text-emerald-500 text-sm shrink-0" />
-                <span>Audio bütövlüyü təmin edildi (H.264 + AAC Stereo uyğunlaşdırıldı)</span>
+                <span>Audio bütövlüyü təmin edildi (Video hazırdır və yayımlanır)</span>
               </>
             ) : audioStatus === "silent" ? (
               <>
@@ -155,8 +276,8 @@ export default function TelegramVideoUploader({
               </>
             ) : (
               <>
-                <FiVolumeX className="text-slate-400 text-sm shrink-0" />
-                <span>Videoda audio axını yoxdur</span>
+                <FiVolume2 className="text-slate-500 text-sm shrink-0" />
+                <span>Video hazırdır və yayımlanır</span>
               </>
             )}
           </div>
@@ -190,16 +311,16 @@ export default function TelegramVideoUploader({
             <div className="space-y-3 flex flex-col items-center">
               <FiLoader className="text-3xl text-copper animate-spin" />
               <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">
-                Video normallaşdırılır (FFmpeg) və Telegram-a yüklənir...
+                Video Telegram buluduna yüklənir...
               </p>
-              <div className="w-52 bg-slate-200 dark:bg-slate-700 h-2 rounded-full overflow-hidden">
+              <div className="w-52 bg-slate-200 dark:bg-slate-700 h-2.5 rounded-full overflow-hidden">
                 <div
                   className="bg-copper h-full transition-all duration-300"
                   style={{ width: `${uploadProgress}%` }}
                 />
               </div>
-              <span className="text-[11px] text-slate-500 font-mono">
-                Səs və video axınları brauzer uyğunluğuna gətirilir...
+              <span className="text-xs text-slate-500 font-mono">
+                {uploadProgress}%
               </span>
             </div>
           ) : (
@@ -214,7 +335,7 @@ export default function TelegramVideoUploader({
                 MP4, MOV, WebM (Maksimum {maxSizeMB} MB)
               </p>
               <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-1">
-                ⚡ Avtomatik H.264 + AAC normallaşdırması ilə səs itkisi olmur
+                ⚡ Telegram Cloud Storage vasitəsilə limitsiz və pulsuz saxlanılır
               </p>
             </div>
           )}

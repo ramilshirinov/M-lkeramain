@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { useApp } from "@/context/AppContext";
 import { languages } from "@/lib/i18n";
@@ -23,6 +24,7 @@ import {
 } from "react-icons/fi";
 
 export default function Navbar() {
+  const pathname = usePathname();
   const { user, language, setLanguage, dict: rawDict } = useApp();
   const dict = rawDict || {};
   const [isOpenLang, setIsOpenLang] = useState(false);
@@ -31,6 +33,10 @@ export default function Navbar() {
   const [isSatelliteModalOpen, setIsSatelliteModalOpen] = useState(false);
   const [notified, setNotified] = useState(false);
   const [satelliteNotified, setSatelliteNotified] = useState(false);
+
+  if (pathname?.startsWith("/admin")) {
+    return null;
+  }
 
   const linkClass = "text-navy dark:text-slate-200 hover:text-copper transition";
 

@@ -3,6 +3,7 @@ import { uploadVideoToTelegram, VideoError } from "@/lib/telegramVideo";
 
 export const runtime = "nodejs"; // ffmpeg (child_process) yalnız Node runtime-da işləyir
 export const dynamic = "force-dynamic";
+export const maxDuration = 60;
 
 // lib/upload.js bu route-u çağırır və cavabda { url, path } və xəta halında { error } gözləyir.
 export async function POST(req) {

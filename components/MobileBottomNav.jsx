@@ -17,6 +17,10 @@ export default function MobileBottomNav() {
   const { user, dict: rawDict } = useApp();
   const dict = rawDict || {};
 
+  if (pathname?.startsWith("/admin")) {
+    return null;
+  }
+
   const navItems = [
     { href: "/", label: dict.nav?.home || "Əsas", icon: FiHome },
     { href: "/listings", label: dict.nav?.listings || "Elanlar", icon: FiSearch },

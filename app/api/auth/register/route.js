@@ -60,6 +60,21 @@ export async function POST(req) {
       .eq("id", created.user.id)
       .maybeSingle();
 
+    try {
+      const { recordActivity } = await import("@/lib/activityLogger");
+      const ip = req.headers.get("x-forwarded-for") || req.headers.get("x-real-ip") || "127.0.0.1";
+      await recordActivity({
+        action: "AUTH_REGISTER",
+        userId: created.user.id,
+        userEmail: email,
+        userName: fullName,
+        role: role,
+        details: `Yeni ${role === "realtor" ? "Rieltor" : "Müştəri"} hesabı qeydiyyatdan keçdi`,
+        ip: ip.split(",")[0].trim(),
+        userAgent: req.headers.get("user-agent") || "",
+      });
+    } catch {}
+
     return NextResponse.json({
       success: true,
       user: signInData?.user || created.user,

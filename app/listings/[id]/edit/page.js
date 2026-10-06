@@ -13,6 +13,7 @@ import {
   localizedField,
 } from "@/lib/listings";
 import MediaUploader from "@/components/MediaUploader";
+import TelegramVideoUploader from "@/components/TelegramVideoUploader";
 import { FiCheckCircle, FiAlertCircle, FiEdit3 } from "react-icons/fi";
 
 const LocationPicker = dynamic(() => import("@/components/LocationPicker"), {
@@ -304,6 +305,13 @@ export default function EditListingPage() {
               onBusyChange={setImgBusy}
             />
             {errors.images && <p className="text-xs text-red-500 font-medium">⚠️ Zəhmət olmasa, ən azı bir şəkil əlavə edin.</p>}
+
+            <TelegramVideoUploader
+              files={videoFiles}
+              setFiles={setVideoFiles}
+              label="Video (Könüllü)"
+              onBusyChange={setVidBusy}
+            />
           </div>
         </section>
 

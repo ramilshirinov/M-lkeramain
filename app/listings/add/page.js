@@ -205,6 +205,20 @@ export default function AddListingPage() {
         media,
       });
 
+      // Admin fəaliyyət jurnalına bildiririk ("kim nə etdi")
+      fetch("/api/admin/activities", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "LISTING_CREATE",
+          userId: user?.id,
+          userEmail: user?.email,
+          userName: user?.user_metadata?.full_name || user?.email,
+          role: user?.user_metadata?.role || "customer",
+          details: `Yeni elan əlavə edildi: "${form.title_az || 'Elan'}" (${form.price} ${form.currency})`,
+        }),
+      }).catch(() => {});
+
       setSuccess(true);
       setTimeout(() => router.push("/listings"), 1200);
     } catch (err) {

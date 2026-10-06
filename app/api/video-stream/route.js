@@ -31,7 +31,16 @@ export async function GET(req) {
   try {
     const { searchParams } = new URL(req.url);
     let filePath = searchParams.get("path");
-    const fileId = searchParams.get("file_id");
+    let fileId = searchParams.get("file_id") || searchParams.get("fileId") || searchParams.get("id");
+
+    if (!fileId && !filePath) {
+      for (const [key] of searchParams.entries()) {
+        if (key.startsWith("fi_") || key.startsWith("BAA")) {
+          fileId = key;
+          break;
+        }
+      }
+    }
 
     if (!filePath && fileId) {
       filePath = await resolveFilePath(fileId);
